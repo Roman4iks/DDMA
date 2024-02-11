@@ -4,5 +4,6 @@ config.php
 vendor
 Upload
 Download
+Commands
 
 
