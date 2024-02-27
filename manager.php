@@ -10,14 +10,19 @@
  * file that was distributed with this source code.
  */
 
+require_once __DIR__ . '/src/DDMA/TelegramBot/DB.php';
+
 use Longman\TelegramBot\TelegramLog;
 
-/**
- * This configuration file is used as the main script for the PHP Telegram Bot Manager.
- *
- * For the full list of options, go to:
- * https://github.com/php-telegram-bot/telegram-bot-manager#set-extra-bot-parameters
- */
+
+/*
+*
+* This configuration file is used as the main script for the PHP Telegram Bot Manager.
+*
+* For the full list of options, go to:
+* https://github.com/php-telegram-bot/telegram-bot-manager#set-extra-bot-parameters
+*/
+
 
 // Load composer
 require_once __DIR__ . '/vendor/autoload.php';
@@ -25,6 +30,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 // Load all configuration options
 /** @var array $config */
 $config = require __DIR__ . '/config.php';
+
+// Load DB
 
 try {
     Longman\TelegramBot\TelegramLog::initialize(
@@ -39,6 +46,8 @@ try {
     
     $bot = new TelegramBot\TelegramBotManager\BotManager($config);
     $bot->getTelegram()->enableMySql($config['mysql']);
+    
+    $pdo = DDMA\TelegramBot\DB::initialize($config['database']);
     
     $bot->run();
     
