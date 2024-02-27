@@ -2,7 +2,6 @@
 namespace Longman\TelegramBot\Commands\UserCommands;
 
 use Longman\TelegramBot\Commands\UserCommand;
-use Longman\TelegramBot\DB;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\TelegramLog;
@@ -10,6 +9,7 @@ use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\Keyboard;
 use Longman\TelegramBot\Entities\KeyboardButton;
 use Longman\TelegramBot\Exception\TelegramException;
+use DDMA\TelegramBot\DB;
 
 class RegisterCommand extends UserCommand
 {
@@ -19,21 +19,19 @@ class RegisterCommand extends UserCommand
     
     protected $version = '0.1.0';
 
-    protected $need_mysql = true;
-
     protected $private_only = true;
     
     protected $conversation;
     
     public function execute(): ServerResponse
-        {
+    {
             $message = $this->getMessage();
             $chat    = $message->getChat();
             $user    = $message->getFrom();
             $text    = trim($message->getText(true));
             $chat_id = $chat->getId();
             $user_id = $user->getId();
-    
+            
             $data = [
                 'chat_id'      => $chat_id,
                 'reply_markup' => Keyboard::remove(['selective' => true]),
@@ -47,9 +45,12 @@ class RegisterCommand extends UserCommand
     
             $notes = &$this->conversation->notes;
             !is_array($notes) && $notes = [];
-    
-            $state = $notes['state'] ?? 0;
 
+            if(DB::selectUserData($user_id)){
+                return $this->replyToChat('Вы зарегистрированы!');
+            }
+            
+            $state = $notes['state'] ?? 0;
             $result = Request::emptyResponse();
 
             TelegramLog::debug('Start Register');
@@ -72,7 +73,7 @@ class RegisterCommand extends UserCommand
                         break;
                     }
                     
-                    $notes['name'] = $text;
+                    $notes['first_name'] = $text;
                     
                     TelegramLog::debug('Success Register Name:', $notes);
                     $text = '';
@@ -94,7 +95,7 @@ class RegisterCommand extends UserCommand
                         break;
                     }
 
-                    $notes['surname'] = $text;
+                    $notes['middle_name'] = $text;
                     TelegramLog::debug('Success Register Surname:', $notes);
                     $text = '';
                 case 2:
@@ -156,9 +157,31 @@ class RegisterCommand extends UserCommand
                     TelegramLog::debug('Success Register birthday:', $notes);
                     $text = '';
                 case 4:
-                    TelegramLog::debug('Start Register Role');
-                    if ($text === '' || !in_array($text, ['Преподователь', 'Студент'], true)) {
+                    TelegramLog::debug('Start Register Contact');
+                    if ($message->getContact() === null) {
                         $notes['state'] = 4;
+                        $this->conversation->update();
+        
+                        $data['reply_markup'] = (new Keyboard(
+                            (new KeyboardButton('Share Contact'))->setRequestContact(true)
+                        ))
+                            ->setOneTimeKeyboard(true)
+                            ->setResizeKeyboard(true)
+                            ->setSelective(true);
+        
+                        $data['text'] = 'Поделитесь своими контактами для связи:';
+        
+                        $result = Request::sendMessage($data);
+                        break;
+                    }
+        
+                    $notes['phone'] = $message->getContact()->getPhoneNumber();
+                    TelegramLog::debug('Success Register Phone Number:', $notes);
+                case 5:
+                    TelegramLog::debug('Start Register Role');
+                    
+                    if ($text === '' || !in_array($text, ['Преподователь', 'Студент'], true)) {
+                        $notes['state'] = 5;
                         $this->conversation->update();
     
                         $data['reply_markup'] = (new Keyboard(['Преподователь', 'Студент']))
@@ -179,20 +202,25 @@ class RegisterCommand extends UserCommand
                     $notes['role'] = $text;
                     TelegramLog::debug('Success Register Role:', $notes);
                     $text = '';
-                 case 5:
+                 case 6:
                     TelegramLog::debug('Start Register Group');
-                    if ($text === '' || !in_array($text, ['ІПЗ-20', 'ТОМ-ТОР-19'], true)) {
-                        $notes['state'] = 5;
+                    $groups = array();
+
+                    foreach(DB::selectAllGroupsData($user_id) as $group){
+                        array_push($groups, $group['name']);
+                    }
+                    if ($text === '' || !in_array($text, $groups, true)) {
+                        $notes['state'] = 6;
                         $this->conversation->update();
     
-                        $data['reply_markup'] = (new Keyboard(['ІПЗ-20', 'ТОМ-ТОР-19']))
+                        $data['reply_markup'] = (new Keyboard($groups))
                             ->setResizeKeyboard(true)
                             ->setOneTimeKeyboard(true)
                             ->setSelective(true);
     
                         $data['text'] = 'Какая ваша группа? :';
                         
-                        if ($text !== '' || !in_array($text, ['ІПЗ-20', 'ТОП-ТОР-19'], true)) {
+                        if ($text !== '' || !in_array($text, $groups, true)) {
                             $data['text'] = 'Выберите группу';
                         }
     
@@ -203,57 +231,27 @@ class RegisterCommand extends UserCommand
                     $notes['group'] = $text;
                     TelegramLog::debug('Success Register Group:', $notes);
                     $text = '';
-                
-                case 6:
-                    TelegramLog::debug('Start Register Contact');
-                    if ($message->getContact() === null) {
-                        $notes['state'] = 6;
-                        $this->conversation->update();
-    
-                        $data['reply_markup'] = (new Keyboard(
-                            (new KeyboardButton('Share Contact'))->setRequestContact(true)
-                        ))
-                            ->setOneTimeKeyboard(true)
-                            ->setResizeKeyboard(true)
-                            ->setSelective(true);
-    
-                        $data['text'] = 'Поделитесь своими контактами для связи:';
-    
-                        $result = Request::sendMessage($data);
-                        break;
-                    }
-    
-                    $notes['phone_number'] = $message->getContact()->getPhoneNumber();
-                    TelegramLog::debug('Success Register Phone Number:', $notes);
                 case 7:
                     TelegramLog::debug('Finish Register');
+
                     $this->conversation->update();
                     $out_text = '/register result:' . PHP_EOL;
                     unset($notes['state']);
+                    
                     foreach ($notes as $k => $v) {
                         $out_text .= PHP_EOL . ucfirst($k) . ': ' . $v;
                     }
 
                     try {
-                        $pdo = DB::getPdo();
-
-                        $stmt = $pdo->prepare("INSERT INTO users_data (telegram_id, telegram_username, first_name, middle_name, second_name, birthday, phone) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->execute([$user_id, $user->getUsername(), $notes['name'], $notes['surname'], $notes['second_name'], $notes['birthday'], $notes['phone_number']]);
-                        TelegramLog::debug("Success insert users_data");
-                        switch ($notes['role']) {
-                            case 'Студент':
-                                // Вставка данных студента в таблицу students
-                                $stmt = $pdo->prepare("INSERT INTO students (course, user_id, group_name) VALUES (?, ?, ?)");
-                                $stmt->execute(["I", $user_id, $notes['group']]);
-                                TelegramLog::debug("Success insert students");
-                                break;
-
-                            case 'Преподователь':
-                                // Вставка данных преподавателя в таблицу teachers
-                                $stmt = $pdo->prepare("INSERT INTO teachers (group_name, user_id) VALUES (?, ?)");
-                                $stmt->execute([$notes['group'], $user_id]);
-                                TelegramLog::debug("Success insert teachers");
-                                break;
+                        DB::insertUserData($user, $notes);
+                        TelegramLog::debug("Success insert user data");
+            
+                        if($notes['role'] == "Студент"){
+                            DB::insertStudentData($user_id, $notes['group']);
+                            TelegramLog::debug("Success insert student");
+                        }else if($notes['role'] == "Преподователь"){
+                            DB::insertTeacherData($user_id, $notes['group']);
+                            TelegramLog::debug("Success insert teacher");
                         }
                     } catch (\PDOException $e) {
                         $data['text'] = 'Произошла ошибка при регистрации: ' . $e->getMessage();
