@@ -1,5 +1,5 @@
 <?php
-namespace DDMA\TelegramBot;
+namespace App;
 
 use Exception;
 use Longman\TelegramBot\Entities\User;
@@ -34,13 +34,11 @@ class DB
     }
 
     public static function insertStudentData(int $user_id, string $group): bool {
-        // Вставка данных студента в таблицу students
         $stmt = self::$pdo->prepare("INSERT INTO students (group_name, user_id) VALUES (?,?)"); 
         return $stmt->execute([$group, $user_id]);
     }
     
-    public static function insertTeacherData(int $user_id, string $group): bool {
-        // Вставка данных преподавателя в таблицу teachers
+    public static function insertTeacherData(int $user_id, string|null $group): bool {
         $stmt = self::$pdo->prepare("INSERT INTO teachers (group_name, user_id) VALUES (?,?)"); 
         return $stmt->execute([$group, $user_id]);
     }
@@ -56,9 +54,9 @@ class DB
         $first_name = $data['first_name'];
         $middle_name = $data['middle_name'];
         $second_name = $data['second_name'];
+        $birthday = $data['birthday'];
         $email = $data['email'];
         $phone = $data['phone'];
-        $birthday = $data['birthday'];
 
         try {
             $sth = self::$pdo->prepare('

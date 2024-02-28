@@ -10,10 +10,9 @@
  * file that was distributed with this source code.
  */
 
-require_once __DIR__ . '/src/DDMA/TelegramBot/DB.php';
+require_once __DIR__ . '/src/App/DB.php';
 
 use Longman\TelegramBot\TelegramLog;
-
 
 /*
 *
@@ -47,7 +46,7 @@ try {
     $bot = new TelegramBot\TelegramBotManager\BotManager($config);
     $bot->getTelegram()->enableMySql($config['mysql']);
     
-    $pdo = DDMA\TelegramBot\DB::initialize($config['database']);
+    $pdo = App\DB::initialize($config['database']);
     
     $bot->run();
     
