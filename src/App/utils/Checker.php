@@ -7,12 +7,23 @@ use Longman\TelegramBot\TelegramLog;
 
 class Checker
 {
+    // TODO
     public static function isTimeAvailable($checkStartTime, $checkEndTime, $schedules): bool
     {
         foreach ($schedules as $schedule) {
             $scheduleStartTime = $schedule['start'];
             $scheduleEndTime = $schedule['end'];
-
+    
+            // Определение номера недели и текущей недели
+            $checkWeek = $checkStartTime->format('W');
+            $scheduleWeek = $scheduleStartTime->format('W');
+            $isUpperWeek = $checkWeek % 2 === 0;
+    
+            // Проверка, находится ли текущая неделя выше или ниже расписания
+            if (($isUpperWeek && $checkWeek < $scheduleWeek) || (!$isUpperWeek && $checkWeek > $scheduleWeek)) {
+                continue; // Пропускаем проверку, если текущая неделя выше или ниже расписания
+            }
+    
             // Проверяем наличие пересечения времени
             if (($checkStartTime >= $scheduleStartTime && $checkStartTime < $scheduleEndTime) ||
                 ($checkEndTime > $scheduleStartTime && $checkEndTime <= $scheduleEndTime) ||
@@ -22,7 +33,7 @@ class Checker
             }
         }
         return true; // Время доступно
-    }
+    }    
 
     public static function checkMinimumBirthYear(DateTime $date, int $year = 12): bool
     {
