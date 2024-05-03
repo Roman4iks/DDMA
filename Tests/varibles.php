@@ -3,6 +3,7 @@
 use App\class\Group;
 use App\class\Subject;
 use App\class\User;
+use App\class\Work;
 
 $groups['Groups'] = [
     new Group(1, 'IPZ', 'Инженерия програмного обеспечения'),
@@ -10,7 +11,7 @@ $groups['Groups'] = [
     new Group(3, 'SS', 'Super Group'),
 ];
 
-$groups['Teachers'] = $groups['Groups'][0];
+$groups['Teachers'] = [$groups['Groups'][0]];
 $groups['Students'] = [$groups['Groups'][1], $groups['Groups'][2]];
 
 $users['Teachers'] = [
@@ -100,6 +101,94 @@ $subjects = [
     new Subject(3, 'Информатика'),
 ];
 
+$works = [
+        [
+            new Work(
+                'Work true 1',
+                $subjects[0]->name,
+                $users['Teachers'][0]->telegram_id,
+                $groups["Groups"][1]->name,
+                '2020-01-01 20:15',
+                '2020-01-03 20:10'
+            ),
+            new Work(
+                'Work true 2',
+                $subjects[1]->name,
+                $users['Teachers'][0]->telegram_id,
+                $groups["Groups"][2]->name,
+                '2024-05-05 20:10',
+                '2024-05-07 22:10'
+            ),
+            new Work(
+                'Work true 3',
+                $subjects[0]->name,
+                $users['Teachers'][1]->telegram_id,
+                $groups["Groups"][2]->name,
+                '2024-05-02 20:10',
+                '2024-06-05 22:10'
+            ),
+            new Work(
+                'Work true 4',
+                $subjects[1]->name,
+                $users['Teachers'][1]->telegram_id,
+                $groups["Groups"][1]->name,
+                '2024-06-08 20:10',
+                '2024-11-05 22:10'
+            ),
+            new Work(
+                'Work true 5',
+                $subjects[1]->name,
+                $users['Teachers'][0]->telegram_id,
+                $groups["Groups"][2]->name,
+                '2024-05-03 20:10',
+                '2024-11-10 22:10'
+            )
+        ],
+
+        [
+            new Work(
+                'Work false 1',
+                $subjects[1]->name,
+                $users['Teachers'][0]->telegram_id,
+                $groups["Groups"][0]->name,
+                '2020-01-07 22:10',
+                '2020-01-05 10:10'
+            ), // Future date
+            new Work(
+                'Work false 2',
+                $subjects[1]->name,
+                100000,
+                $groups["Groups"][0]->name,
+                '2020-01-05 20:10',
+                '2020-01-05 22:10'
+            ), // Teacher absence
+            new Work(
+                'Work false 3',
+                '',
+                $users['Teachers'][1]->telegram_id,
+                $groups["Groups"][0]->name,
+                '2020-01-05 20:10',
+                '2020-01-05 22:10'
+            ), // subject_id absence
+            new Work(
+                'Work false 4',
+                $subjects[1]->name,
+                $users['Teachers'][0]->telegram_id,
+                '',
+                '2024-05-01 20:10',
+                '2024-05-07 22:10'
+            ), // group_id absence
+            new Work(
+                "",
+                $subjects[1]->name,
+                $users['Teachers'][1]->telegram_id,
+                $groups["Groups"][0]->name,
+                '2020-01-05 20:10',
+                '2020-01-05 22:10'
+            ) // Task absence
+        ]
+];
+
 return [
     'users' => $users,
 
@@ -107,110 +196,9 @@ return [
 
     'subjects' => $subjects,
 
-    // TODO PAIR
-    'pairs' => [
-        [
-            'start' => '12:00',
-            'end' => '13:00',
-            'week' => 1
-        ],
 
-        [
-            'start' => '10:00',
-            'end' => '15:00',
-            'week' => '2',
-        ]
-    ],
 
-    'works' => [
-        1 =>
-        [
-            [
-                'task' => 'Work true 1',
-                'subject_id' => 'Физкультура',
-                'teacher_id' => 1,
-                'group_id' => 'PM',
-                'start' => '2020-01-01 20:15',
-                'end' => '2020-01-03 20:10'
-            ],
-            [
-                'task' => 'Work true 2',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => 'SS',
-                'start' => '2024-05-05 20:10',
-                'end' => '2024-05-07 22:10'
-            ],
-            [
-                'task' => 'Work true 3',
-                'subject_id' => 'Физкультура',
-                'teacher_id' => 1,
-                'group_id' => 'SS',
-                'start' => '2024-05-02 20:10',
-                'end' => '2024-06-05 22:10'
-            ],
-            [
-                'task' => 'Work true 4',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => 'PM',
-                'start' => '2024-06-08 20:10',
-                'end' => '2024-11-05 22:10'
-            ],
-            [
-                'task' => 'Work true 5',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => 'SS',
-                'start' => '2024-05-03 20:10',
-                'end' => '2024-11-10 22:10'
-            ]
-        ],
-
-        0 =>
-        [
-            [
-                'task' => 'Work false 1',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => 'IPZ',
-                'start' => '2020-01-07 22:10',
-                'end' => '2020-01-05 10:10'
-            ], // Future date
-            [
-                'task' => 'Work false 2',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 100000,
-                'group_id' => 'IPZ',
-                'start' => '2020-01-05 20:10',
-                'end' => '2020-01-05 22:10'
-            ], // Teacher absence
-            [
-                'task' => 'Work false 3',
-                'subject_id' => '',
-                'teacher_id' => 1,
-                'group_id' => 'IPZ',
-                'start' => '2020-01-05 20:10',
-                'end' => '2020-01-05 22:10'
-            ], // subject_id absence
-            [
-                'task' => 'Work false 4',
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => '',
-                'start' => '2024-05-01 20:10',
-                'end' => '2024-05-07 22:10'
-            ], // group_id absence
-            [
-                'task' => "",
-                'subject_id' => 'Информатика',
-                'teacher_id' => 1,
-                'group_id' => 'IPZ',
-                'start' => '2020-01-05 20:10',
-                'end' => '2020-01-05 22:10'
-            ] // Task absence
-        ]
-    ],
+    'works' => $works,
 
     'completed_works' =>
     [
@@ -234,5 +222,20 @@ return [
             'student_id' => 4,
             'grade' => 4,
         ]
-    ]
+        ],
+
+        // // TODO PAIR
+    // 'pairs' => [
+    //     [
+    //         'start' => '12:00',
+    //         'end' => '13:00',
+    //         'week' => 1
+    //     ],
+
+    //     [
+    //         'start' => '10:00',
+    //         'end' => '15:00',
+    //         'week' => '2',
+    //     ]
+    // ],
 ];

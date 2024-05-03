@@ -5,6 +5,7 @@ namespace App;
 use App\class\Group;
 use App\class\Subject;
 use App\class\User;
+use App\class\Work;
 use Exception;
 use PDO;
 use PDOException;
@@ -157,45 +158,6 @@ class DB
         }
     }
 
-    public static function insertCompletedWorkData(string $task, int $student_id, int $grade): bool
-    {
-        $work = self::selectWorkData($task);
-
-        if (!$work) {
-            return false;
-        }
-
-        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade) VALUES (?,?,?,?,?)");
-
-        return $stmt->execute([$work['teacher_id'], $student_id, $work['id'], date('Y-m-d H:i:s'), $grade]);
-    }
-
-    public static function insertWorkData(string $task, string $subject_name, int $teacher_id, string $group_name, string $start, string $end): bool
-    {
-        $group = self::selectGroupData($group_name);
-        $subject = self::selectSubjectData($subject_name);
-        $teacher = self::selectTeacherData($teacher_id);
-
-        $stmt = self::$pdo->prepare("INSERT INTO works (task, subject_id, teacher_id, group_id, start, end) VALUES (?,?,?,?,?,?)");
-
-        if ($group && $subject && $teacher) {
-            return $stmt->execute([$task, $subject->id, $teacher['user_id'], $group->id, $start, $end]);
-        } else {
-            return false;
-        }
-    }
-
-    public static function insertTeacherSubjectData(int $teacher_id, string $subject_name): bool
-    {
-        if (self::selectTeacherData($teacher_id)) {
-            $stmt = self::$pdo->prepare("INSERT INTO teacher_subject (teacher_id, subject_id) VALUES (?,?)");
-            $subject = self::selectSubjectData($subject_name);
-            return $stmt->execute([$teacher_id, $subject->id]);
-        } else {
-            return false;
-        }
-    }
-
     public static function insertSubjectData(string $subject_name): bool
     {
         $subject = DB::selectSubjectData($subject_name);
@@ -208,6 +170,76 @@ class DB
         }
     }
 
+    public static function selectSubjectData(string $name): Subject|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+        try {
+            $query = '
+                SELECT * 
+                FROM `subjects` 
+                WHERE `name` = :name
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':name', $name, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if($data){
+                return new Subject($data['id'], $data['name']);
+            }else{
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function insertWorkData(Work $work): bool
+    {
+        $group = self::selectGroupData($work->group_name);
+        $subject = self::selectSubjectData($work->subject_name);
+        $teacher = self::selectTeacherData($work->teacher_id);
+
+        $stmt = self::$pdo->prepare("INSERT INTO works (task, subject_id, teacher_id, group_id, start, end) VALUES (?,?,?,?,?,?)");
+
+        if ($group && $subject && $teacher) {
+            return $stmt->execute([$work->task, $subject->id, $teacher['user_id'], $group->id, $work->start, $work->end]);
+        } else {
+            return false;
+        }
+    }
+
+    public static function insertCompletedWorkData(string $task, int $student_id, int $grade): bool
+    {
+        $work = self::selectWorkData($task);
+
+        if (!$work) {
+            return false;
+        }
+
+        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade) VALUES (?,?,?,?,?)");
+
+        return $stmt->execute([$work->teacher_id, $student_id, $work->id, date('Y-m-d H:i:s'), $grade]);
+    }
+
+    
+
+    public static function insertTeacherSubjectData(int $teacher_id, string $subject_name): bool
+    {
+        if (self::selectTeacherData($teacher_id)) {
+            $stmt = self::$pdo->prepare("INSERT INTO teacher_subject (teacher_id, subject_id) VALUES (?,?)");
+            $subject = self::selectSubjectData($subject_name);
+            return $stmt->execute([$teacher_id, $subject->id]);
+        } else {
+            return false;
+        }
+    }
+
+    
+
     public static function insertStudentData(int $user_id, string $group_name): bool
     {
         $stmt = self::$pdo->prepare("INSERT INTO students (user_id, group_id) VALUES (?,?)");
@@ -215,11 +247,27 @@ class DB
         return $stmt->execute([$user_id, $group->id]);
     }
 
-    public static function insertTeacherData(int $user_id, string|null $group_name): bool
+    public static function insertTeacherData(int $user_id, ?string $group_name): bool
     {
+        $teacher = self::selectTeacherData($user_id);
+        
+        if ($teacher) {
+            return false;
+        }
+    
+        $group_id = null;
+        if ($group_name !== null) {
+            $group = self::selectGroupData($group_name);
+            if ($group) {
+                $group_id = $group->id;
+            } else {
+                return false;
+            }
+        }
+    
         $stmt = self::$pdo->prepare("INSERT INTO teachers (user_id, group_id) VALUES (?,?)");
-        $group = $group_name ? self::selectGroupData($group_name) : ['id' => null];
-        return $stmt->execute([$user_id, $group->id]);
+    
+        return $stmt->execute([$user_id, $group_id]);
     }
 
     // TODO PAIR
@@ -252,7 +300,7 @@ class DB
         return $stmt->execute([$subject->id, $teacher['user_id'], $group->id, $start, $end, $week, $top_week]);
     }
 
-    public static function selectWorkData(string $task): array|false|Exception
+    public static function selectWorkData(string $task): Work|false|Exception
     {
         if (!self::isDbConnected()) {
             return new Exception("DB connection is not connected");
@@ -260,16 +308,25 @@ class DB
 
         try {
             $query = '
-            SELECT * 
-            FROM works 
-            WHERE task = :task;
+            SELECT w.*, g.name AS group_name, t.user_id AS teacher_id, s.name AS subject_name
+            FROM works w
+            LEFT JOIN groups g ON w.group_id = g.id
+            LEFT JOIN teachers t ON w.teacher_id = t.user_id
+            LEFT JOIN subjects s ON w.subject_id = s.id
+            WHERE w.task = :task;            
             ';
 
             $stmt = self::$pdo->prepare($query);
             $stmt->bindParam(':task', $task, PDO::PARAM_STR);
             $stmt->execute();
 
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if($data){
+                return new Work($data['task'], $data['subject_name'], $data['teacher_id'], $data['group_name'], $data['start'], $data['end'], $data['id']);
+            }else{
+                return false;
+            }
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -391,32 +448,7 @@ class DB
         }
     }
 
-    public static function selectSubjectData(string $name): Subject|false|Exception
-    {
-        if (!self::isDbConnected()) {
-            return new Exception("DB connection is not connected");
-        }
-        try {
-            $query = '
-                SELECT * 
-                FROM `subjects` 
-                WHERE `name` = :name
-            ';
-            $stmt = self::$pdo->prepare($query);
-            $stmt->bindParam(':name', $name, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if($data){
-                return new Subject($data['id'], $data['name']);
-            }else{
-                return false;
-            }
-        } catch (PDOException $e) {
-            return new Exception($e->getMessage());
-        }
-    }
+    
 
     public static function selectCompletedWorksData(string $task): array|false|Exception
     {
@@ -436,7 +468,7 @@ class DB
                 WHERE `work_id` = :work_id
             ';
             $stmt = self::$pdo->prepare($query);
-            $stmt->bindParam(':work_id', $work['id'], PDO::PARAM_STR);
+            $stmt->bindParam(':work_id', $work->id, PDO::PARAM_STR);
             $stmt->execute();
 
             return $stmt->fetchAll(PDO::FETCH_ASSOC);

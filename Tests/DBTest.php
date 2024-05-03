@@ -37,7 +37,7 @@ class DBTest extends TestCase
         self::$users = $data['users'];
         self::$groups = $data['groups'];
         self::$subjects = $data['subjects'];
-        self::$completed_works = $data['pairs'];
+        // self::$completed_works = $data['pairs'];
         self::$works = $data['works'];
         self::$completed_works = $data['completed_works'];
     }
@@ -114,28 +114,33 @@ class DBTest extends TestCase
     #[Depends("testInsertUserData")]
     public function testInsertTeacherData(): void
     {
-        $id = 0;
-        foreach (self::$users['Teachers'] as $user) {
-            foreach (self::$groups['Teachers'] as $group) {
-                if ($id % 2 == 0) {
+        foreach (self::$users['Teachers'] as $index => $user) {
+            $existing_teacher = DB::selectTeacherData($user->telegram_id);
+
+            if ($existing_teacher) {
+                continue;
+            }
+
+            foreach (self::$groups['Teachers'] as  $group) {
+                if ($index % 2 == 0) {
                     $result = DB::insertTeacherData($user->telegram_id, null);
                     $this->assertTrue($result);
-                } else if ($id % 2 == 1) {
+                } else if ($index % 2 == 1) {
                     $result = DB::insertTeacherData($user->telegram_id, $group->name);
                     $this->assertTrue($result);
                 }
-                $id++;
             }
         }
     }
+    
 
     #[Test]
     #[Depends("testInsertTeacherData")]
     public function testSelectTeacherData(): void
     {
         foreach (self::$users['Teachers'] as $user) {
-                $result = DB::selectTeacherData($user->telegram_id);
-                $this->assertIsArray($result);
+            $result = DB::selectTeacherData($user->telegram_id);
+            $this->assertIsArray($result);
         }
         // Test select method with invalid user ID
         $result = DB::selectTeacherData(10000000);
@@ -256,7 +261,7 @@ class DBTest extends TestCase
     {
         foreach (self::$subjects as $subject) {
             $result = DB::selectSubjectData($subject->name);
-            $this->assertInstanceOf(Subject::class ,$result);
+            $this->assertInstanceOf(Subject::class, $result);
         }
 
         $result = DB::selectSubjectData("Nothing");
@@ -269,13 +274,13 @@ class DBTest extends TestCase
     #[Depends("testInsertSubjectData")]
     public function testInsertWorkData(): void
     {
-        foreach (self::$works[1] as $work) {
-            $result = DB::insertWorkData($work['task'], $work['subject_id'], $work['teacher_id'], $work['group_id'], $work['start'], $work['end']);
+        foreach (self::$works[0] as $work) {
+            $result = DB::insertWorkData($work);
             $this->assertTrue($result);
         }
 
-        foreach (self::$works[0] as $work) {
-            $result = DB::insertWorkData($work['task'], $work['subject_id'], $work['teacher_id'], $work['group_id'], $work['start'], $work['end']);
+        foreach (self::$works[1] as $work) {
+            $result = DB::insertWorkData($work);
             $this->assertFalse($result);
         }
     }
@@ -314,20 +319,20 @@ class DBTest extends TestCase
     #[Depends('testInsertWorkData')]
     #[Depends('testInsertStudentData')]
     #[Depends('testInsertTeacherData')]
-    public function testInsertCompletedWorkData(): void 
-    {   
-        foreach(self::$completed_works as $i => $completeWork){
-                self::$completed_works[$i]['task'] = self::$works[1][$i]['task'];
-                $result = DB::insertCompletedWorkData(self::$works[1][$i]['task'], $completeWork['student_id'], $completeWork['grade']);
-                $this->assertTrue($result);
-            }
+    public function testInsertCompletedWorkData(): void
+    {
+        foreach (self::$completed_works as $i => $completeWork) {
+            self::$completed_works[$i]['task'] = self::$works[0][$i]->task;
+            $result = DB::insertCompletedWorkData(self::$works[0][$i]->task, $completeWork['student_id'], $completeWork['grade']);
+            $this->assertTrue($result);
+        }
     }
 
     #[Test]
     #[Depends('testInsertCompletedWorkData')]
-    public function testSelectCompletedWorksData(): void 
+    public function testSelectCompletedWorksData(): void
     {
-        foreach(self::$completed_works as $completedWorks){
+        foreach (self::$completed_works as $completedWorks) {
             $result = DB::selectCompletedWorksData($completedWorks['task']);
             $this->assertIsArray($result);
 
@@ -362,9 +367,9 @@ class DBTest extends TestCase
     #[Test]
     public function testGetWorksThisWeek(): void
     {
-        foreach(self::$users['Students'] as $student){
+        foreach (self::$users['Students'] as $student) {
             $result = DB::getWorksThisWeek($student->telegram_id);
-            
+
             $expectedKeys = ['task', 'name', 'start', 'end', 'teacher_fullname'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -375,11 +380,11 @@ class DBTest extends TestCase
     }
 
     #[Test]
-    public function testGetUncompletedTasksDetailsFromStudentWeek(): void 
+    public function testGetUncompletedTasksDetailsFromStudentWeek(): void
     {
-        foreach(self::$users['Students'] as $student){
+        foreach (self::$users['Students'] as $student) {
             $result = DB::getUncompletedTasksDetailsFromStudentWeek($student->telegram_id);
-            
+
             $expectedKeys = ['task', 'name', 'start', 'end', 'teacher_fullname'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -392,9 +397,9 @@ class DBTest extends TestCase
     #[Test]
     public function testGetUncompletedTasksDetailsForStudentDeadline(): void
     {
-        foreach(self::$users['Students'] as $student){
+        foreach (self::$users['Students'] as $student) {
             $result = DB::getUncompletedTasksDetailsForStudentDeadline($student->telegram_id);
-            
+
             $expectedKeys = ['task', 'name', 'start', 'end', 'teacher_fullname'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -405,11 +410,11 @@ class DBTest extends TestCase
     }
 
     #[Test]
-    public function testGetUncompletedTasksDetailsForStudent(): void 
+    public function testGetUncompletedTasksDetailsForStudent(): void
     {
-        foreach(self::$users['Students'] as $student){
+        foreach (self::$users['Students'] as $student) {
             $result = DB::getUncompletedTasksDetailsForStudent($student->telegram_id);
-            
+
             $expectedKeys = ['task', 'name', 'start', 'end', 'teacher_fullname'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -420,11 +425,11 @@ class DBTest extends TestCase
     }
 
     #[Test]
-    public function testGetTotalWorksFromSubjectWithGroup(): void 
+    public function testGetTotalWorksFromSubjectWithGroup(): void
     {
-        foreach(self::$groups['Groups'] as $group){
+        foreach (self::$groups['Groups'] as $group) {
             $result = DB::getTotalWorksFromSubjectWithGroup($group->name);
-            
+
             $expectedKeys = ['subject', 'total_works', 'group_name'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -435,11 +440,11 @@ class DBTest extends TestCase
     }
 
     #[Test]
-    public function testGetTotalStudentsFromGroup(): void 
+    public function testGetTotalStudentsFromGroup(): void
     {
-        foreach(self::$groups['Groups'] as $group){
+        foreach (self::$groups['Groups'] as $group) {
             $result = DB::getTotalStudentsFromGroup($group->name);
-            
+
             $expectedKeys = ['group_name', 'total_students'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -452,9 +457,9 @@ class DBTest extends TestCase
     #[Test]
     public function testGetCompletedWorksPerStudentPerSubject(): void
     {
-        foreach(self::$users['Students'] as $student){
+        foreach (self::$users['Students'] as $student) {
             $result = DB::getCompletedWorksPerStudentPerSubject($student->telegram_id);
-            
+
             $expectedKeys = ['student_fullname', 'subject_name', 'completed_works_count', 'pending_works_count', 'all_works_count'];
             foreach ($result as $row) {
                 foreach ($expectedKeys as $key) {
@@ -517,9 +522,9 @@ class DBTest extends TestCase
                 if ($work_data !== false && isset($work_data['work_id'])) {
                     $work_id = $work_data['work_id'];
                 } else {
-                   continue;
+                    continue;
                 }
-                
+
                 $stmt->bindParam(':work_id', $work_id, PDO::PARAM_STR);
                 $stmt->execute();
             }
@@ -538,26 +543,5 @@ class DBTest extends TestCase
         }
         // Clean up PDO instance after testing
         self::$pdo = null;
-    }
-}
-
-
-class CustomUser extends User
-{
-
-    public function __construct(int $id, string $username)
-    {
-        $this->id = $id;
-        $this->username = $username;
-    }
-    // Добавим метод getId, если его нет в базовом классе User
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    public function getUsername()
-    {
-        return $this->username;
     }
 }
