@@ -10,9 +10,13 @@
  * file that was distributed with this source code.
  */
 
-require_once __DIR__ . '/src/App/DB.php';
-
+use Longman\TelegramBot\Exception\TelegramException;
+use Longman\TelegramBot\Exception\TelegramLogException;
 use Longman\TelegramBot\TelegramLog;
+use Monolog\Formatter\LineFormatter;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use TelegramBot\TelegramBotManager\BotManager;
 
 /*
 *
@@ -26,37 +30,35 @@ use Longman\TelegramBot\TelegramLog;
 // Load composer
 require_once __DIR__ . '/vendor/autoload.php';
 
+require_once __DIR__ . '/src/App/DB.php';
+
 // Load all configuration options
 /** @var array $config */
 $config = require __DIR__ . '/config.php';
 
-// Load DB
-
 try {
-    Longman\TelegramBot\TelegramLog::initialize(
-       new Monolog\Logger('telegram_bot', [
-           (new Monolog\Handler\StreamHandler($config['logging']['debug'], Monolog\Logger::DEBUG))->setFormatter(new Monolog\Formatter\LineFormatter(null, null, true)),
-           (new Monolog\Handler\StreamHandler($config['logging']['error'], Monolog\Logger::ERROR))->setFormatter(new Monolog\Formatter\LineFormatter(null, null, true)),
+    TelegramLog::initialize(
+       new Logger('telegram_bot', [
+           (new StreamHandler($config['logging']['debug'], Logger::DEBUG))->setFormatter(new LineFormatter(null, null, true)),
+           (new StreamHandler($config['logging']['error'], Logger::ERROR))->setFormatter(new LineFormatter(null, null, true)),
        ]),
-       new Monolog\Logger('telegram_bot_updates', [
-           (new Monolog\Handler\StreamHandler($config['logging']['update'], Monolog\Logger::INFO))->setFormatter(new Monolog\Formatter\LineFormatter('%message%' . PHP_EOL)),
+       new Logger('telegram_bot_updates', [
+           (new StreamHandler($config['logging']['update'], Logger::INFO))->setFormatter(new LineFormatter('%message%' . PHP_EOL)),
        ])
     );
     
-    $bot = new TelegramBot\TelegramBotManager\BotManager($config);
+    $bot = new BotManager($config);
     $bot->getTelegram()->enableMySql($config['mysql']);
     
     $pdo = App\DB::initialize($config['database']);
-    
     $bot->run();
     
-    Longman\TelegramBot\TelegramLog::debug("Bot-run");
-} catch (Longman\TelegramBot\Exception\TelegramException $e) {
-    Longman\TelegramBot\TelegramLog::error($e);
+    TelegramLog::debug("Bot-run");
+} catch (TelegramException $e) {
+    TelegramLog::error($e);
 
     //echo $e;
-} catch (Longman\TelegramBot\Exception\TelegramLogException $e) {
-    Longman\TelegramBot\TelegramLog::error($e);
-    
+} catch (TelegramLogException $e) {
+    TelegramLog::error($e);
     //echo $e;
 }
