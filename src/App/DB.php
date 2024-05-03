@@ -38,84 +38,6 @@ class DB
         return self::$pdo instanceof PDO;
     }
 
-    public static function insertCompletedWorkData(string $task, int $student_id, int $grade): bool
-    {
-        $work = self::selectWorkData($task);
-
-        if (!$work) {
-            return false;
-        }
-
-        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade) VALUES (?,?,?,?,?)");
-
-        return $stmt->execute([$work['teacher_id'], $student_id, $work['id'], date('Y-m-d H:i:s'), $grade]);
-    }
-
-    public static function insertWorkData(string $task, string $subject_name, int $teacher_id, string $group_name, string $start, string $end): bool
-    {
-        $group = self::selectGroupData($group_name);
-        $subject = self::selectSubjectData($subject_name);
-        $teacher = self::selectTeacherData($teacher_id);
-
-        $stmt = self::$pdo->prepare("INSERT INTO works (task, subject_id, teacher_id, group_id, start, end) VALUES (?,?,?,?,?,?)");
-
-        if ($group && $subject && $teacher) {
-            return $stmt->execute([$task, $subject['id'], $teacher['user_id'], $group['id'], $start, $end]);
-        } else {
-            return false;
-        }
-    }
-
-    public static function insertTeacherSubjectData(int $teacher_id, string $subject_name): bool
-    {
-        if (self::selectTeacherData($teacher_id)) {
-            $stmt = self::$pdo->prepare("INSERT INTO teacher_subject (teacher_id, subject_id) VALUES (?,?)");
-            $subject = self::selectSubjectData($subject_name);
-            return $stmt->execute([$teacher_id, $subject['id']]);
-        } else {
-            return false;
-        }
-    }
-
-    public static function insertSubjectData(string $subject_name): bool
-    {
-        $subject = DB::selectSubjectData($subject_name);
-
-        if (!$subject) {
-            $stmt = self::$pdo->prepare("INSERT INTO subjects (name) VALUES (?)");
-            return $stmt->execute([$subject_name]);
-        } else {
-            return false;
-        }
-    }
-
-    public static function insertStudentData(int $user_id, string $group_name): bool
-    {
-        $stmt = self::$pdo->prepare("INSERT INTO students (user_id, group_id) VALUES (?,?)");
-        $group = self::selectGroupData($group_name);
-        return $stmt->execute([$user_id, $group['id']]);
-    }
-
-    public static function insertTeacherData(int $user_id, string|null $group_name): bool
-    {
-        $stmt = self::$pdo->prepare("INSERT INTO teachers (user_id, group_id) VALUES (?,?)");
-        $group = $group_name ? self::selectGroupData($group_name) : ['id' => null];
-        return $stmt->execute([$user_id, $group['id']]);
-    }
-
-    public static function insertGroupData(Group $group): bool|Exception
-    {
-        if (self::selectGroupData($group->name)) {
-            return new Exception("The group already exists");
-        }
-        try {
-            $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname) VALUES (?,?)");
-            return $stmt->execute([$group->name, $group->fullname]);
-        } catch (PDOException $e) {
-            return new Exception($e->getMessage());
-        }
-    }
-
     public static function insertUserData(User $user): bool|Exception
     {
         if (!self::isDbConnected()) {
@@ -157,6 +79,148 @@ class DB
         }
     }
 
+    public static function selectUserData(string $telegramId): User|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT * 
+            FROM `users`  
+            WHERE `telegram_id` = :user_id
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':user_id', $telegramId, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($data) {
+                return new User(
+                    $data['telegram_id'],
+                    $data['telegram_username'],
+                    $data['first_name'],
+                    $data['middle_name'],
+                    $data['second_name'],
+                    $data['birthday'],
+                    $data['phone'],
+                    $data['email']
+                );
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function insertGroupData(Group $group): bool|Exception
+    {
+        if (self::selectGroupData($group->name)) {
+            return new Exception("The group already exists");
+        }
+        try {
+            $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname) VALUES (?,?)");
+            return $stmt->execute([$group->name, $group->fullname]);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectGroupData(string $name): Group|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT * 
+            FROM `groups` 
+            WHERE `name` = :name
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':name', $name, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($data) {
+                return new Group($data['id'], $data['name'], $data['fullname']);
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function insertCompletedWorkData(string $task, int $student_id, int $grade): bool
+    {
+        $work = self::selectWorkData($task);
+
+        if (!$work) {
+            return false;
+        }
+
+        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade) VALUES (?,?,?,?,?)");
+
+        return $stmt->execute([$work['teacher_id'], $student_id, $work['id'], date('Y-m-d H:i:s'), $grade]);
+    }
+
+    public static function insertWorkData(string $task, string $subject_name, int $teacher_id, string $group_name, string $start, string $end): bool
+    {
+        $group = self::selectGroupData($group_name);
+        $subject = self::selectSubjectData($subject_name);
+        $teacher = self::selectTeacherData($teacher_id);
+
+        $stmt = self::$pdo->prepare("INSERT INTO works (task, subject_id, teacher_id, group_id, start, end) VALUES (?,?,?,?,?,?)");
+
+        if ($group && $subject && $teacher) {
+            return $stmt->execute([$task, $subject['id'], $teacher['user_id'], $group->id, $start, $end]);
+        } else {
+            return false;
+        }
+    }
+
+    public static function insertTeacherSubjectData(int $teacher_id, string $subject_name): bool
+    {
+        if (self::selectTeacherData($teacher_id)) {
+            $stmt = self::$pdo->prepare("INSERT INTO teacher_subject (teacher_id, subject_id) VALUES (?,?)");
+            $subject = self::selectSubjectData($subject_name);
+            return $stmt->execute([$teacher_id, $subject['id']]);
+        } else {
+            return false;
+        }
+    }
+
+    public static function insertSubjectData(string $subject_name): bool
+    {
+        $subject = DB::selectSubjectData($subject_name);
+
+        if (!$subject) {
+            $stmt = self::$pdo->prepare("INSERT INTO subjects (name) VALUES (?)");
+            return $stmt->execute([$subject_name]);
+        } else {
+            return false;
+        }
+    }
+
+    public static function insertStudentData(int $user_id, string $group_name): bool
+    {
+        $stmt = self::$pdo->prepare("INSERT INTO students (user_id, group_id) VALUES (?,?)");
+        $group = self::selectGroupData($group_name);
+        return $stmt->execute([$user_id, $group->id]);
+    }
+
+    public static function insertTeacherData(int $user_id, string|null $group_name): bool
+    {
+        $stmt = self::$pdo->prepare("INSERT INTO teachers (user_id, group_id) VALUES (?,?)");
+        $group = $group_name ? self::selectGroupData($group_name) : ['id' => null];
+        return $stmt->execute([$user_id, $group->id]);
+    }
+
     // TODO PAIR
     public static function insertPairData(string $subject_name, int $teacher_id, string $group_name, string $start, string $end, int $week, int $top_week = 0): bool|Exception
     {
@@ -184,45 +248,7 @@ class DB
         // isTimeAvailable Проверка на пересечение с другими парами
 
         $stmt = self::$pdo->prepare("INSERT INTO pairs (subject_id, teacher_id, group_id, start, end, week, top_week) VALUES (?,?,?,?,?,?,?)");
-        return $stmt->execute([$subject['id'], $teacher['user_id'], $group['id'], $start, $end, $week, $top_week]);
-    }
-
-    public static function selectUserData(string $telegramId): User|false|Exception
-    {
-        if (!self::isDbConnected()) {
-            return new Exception("DB connection is not connected");
-        }
-
-        try {
-            $query = '
-            SELECT * 
-            FROM `users`  
-            WHERE `telegram_id` = :user_id
-            ';
-            $stmt = self::$pdo->prepare($query);
-            $stmt->bindParam(':user_id', $telegramId, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if($data)
-            {
-                return new User(
-                    $data['telegram_id'],
-                    $data['telegram_username'],
-                    $data['first_name'],
-                    $data['middle_name'],
-                    $data['second_name'],
-                    $data['birthday'],
-                    $data['phone'],
-                    $data['email']
-                );
-            }else{
-                return false;
-            }
-        } catch (PDOException $e) {
-            return new Exception($e->getMessage());
-        }
+        return $stmt->execute([$subject['id'], $teacher['user_id'], $group->id, $start, $end, $week, $top_week]);
     }
 
     public static function selectWorkData(string $task): array|false|Exception
@@ -274,7 +300,7 @@ class DB
             ';
 
             $stmt = self::$pdo->prepare($query);
-            $stmt->bindParam(':group_id', $group['id'], PDO::PARAM_STR);
+            $stmt->bindParam(':group_id', $group->id, PDO::PARAM_STR);
             $stmt->bindParam(':teacher_id', $teacher['user_id'], PDO::PARAM_STR);
 
             $stmt->execute();
@@ -299,34 +325,16 @@ class DB
             $stmt = self::$pdo->prepare($query);
             $stmt->execute();
 
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return new Exception($e->getMessage());
-        }
-    }
-
-    public static function selectGroupData(string $name): Group|false|Exception
-    {
-        if (!self::isDbConnected()) {
-            return new Exception("DB connection is not connected");
-        }
-
-        try {
-            $query = '
-            SELECT * 
-            FROM `groups` 
-            WHERE `name` = :name
-            ';
-            $stmt = self::$pdo->prepare($query);
-            $stmt->bindParam(':name', $name, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $groups = [];
             if ($data) {
-                return new Group($data['id'], $data['name'], $data['fullname']);
+                foreach ($data as $group) {
+                    array_push($groups, new Group($group['id'], $group['name'], $group['fullname']));
+                }
             } else {
                 return false;
             }
+            return $groups;
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -725,12 +733,10 @@ class DB
             WHERE
                 YEARWEEK(w.start, 1) = YEARWEEK(CURRENT_DATE(), 1) AND st.user_id = :student_id";
 
-            // Добавляем условие по студенту, если передан его идентификатор
             if ($student_id === null) {
                 return new Exception("User id is null");
             }
 
-            // Добавляем условие по названию предмета, если передано его название
             if ($subject_name !== null) {
                 $query .= " AND s.name = :subject_name";
             }

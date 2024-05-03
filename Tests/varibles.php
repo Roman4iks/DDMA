@@ -2,7 +2,6 @@
 
 use App\class\Group;
 use App\class\User;
-use App\Test\CustomUser;
 
 $groups['Groups'] = [
     new Group(1, 'IPZ', 'Инженерия програмного обеспечения'),
@@ -216,7 +215,7 @@ return [
             'grade' => 2,
         ],
         [
-            'student_id' => 2,
+            'student_id' => 3,
             'grade' => 3,
         ],
         [
@@ -224,11 +223,11 @@ return [
             'grade' => 5,
         ],
         [
-            'student_id' => 3,
+            'student_id' => 5,
             'grade' => 1,
         ],
         [
-            'student_id' => 2,
+            'student_id' => 4,
             'grade' => 4,
         ]
     ]

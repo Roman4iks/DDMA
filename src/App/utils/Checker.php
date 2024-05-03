@@ -40,7 +40,7 @@ class Checker
         $min_year = (new \DateTime())->modify('-' . $year . ' years')->format('Y');
 
         if ($date->format('Y') > $min_year) {
-            TelegramLog::debug("Invalid date min_year -> " . $date);
+            TelegramLog::debug("Invalid date min_year -> " . $date->format('Y-m-d H:i:s'));
             return false;
         }
 
