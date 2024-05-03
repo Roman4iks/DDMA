@@ -4,6 +4,7 @@ namespace App\Test;
 
 require_once __DIR__ . '/../src/App/DB.php';
 
+use App\class\Group;
 use App\DB;
 use Exception;
 use PDO;
@@ -80,9 +81,13 @@ class DBTest extends TestCase
     public function testInsertGroupData(): void
     {
         foreach (self::$groups['Groups'] as $group) {
-            $result = DB::insertGroupData($group['name'], $group['fullname']);
+            $result = DB::insertGroupData($group);
             $this->assertTrue($result);
         }
+
+        $result = DB::insertGroupData(self::$groups['Groups'][0]);
+
+        $this->assertInstanceOf(Exception::class, $result, "Group has Database");
     }
 
     #[Test]
@@ -90,11 +95,11 @@ class DBTest extends TestCase
     public function testSelectGroupData(): void
     {
         foreach (self::$groups['Groups'] as $group) {
-            $result = DB::selectGroupData($group['name']);
-
-            unset($result['id']);
+            $result = DB::selectGroupData($group->name);
             $this->assertEquals($result, $group);
         }
+
+
 
         $result = DB::selectGroupData("DDDD");
         $this->assertFalse($result);
@@ -478,7 +483,7 @@ class DBTest extends TestCase
         try {
             foreach (self::$groups['Groups'] as $group) {
                 $stmt = self::$pdo->prepare('DELETE FROM groups WHERE name = :name');
-                $stmt->bindParam(':name', $group['name'], PDO::PARAM_STR);
+                $stmt->bindParam(':name', $group->name, PDO::PARAM_STR);
                 $stmt->execute();
             }
         } catch (PDOException $e) {

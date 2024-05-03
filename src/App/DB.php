@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\class\Group;
 use Exception;
 use Longman\TelegramBot\Entities\User;
 use PDO;
@@ -102,13 +103,17 @@ class DB
         return $stmt->execute([$user_id, $group['id']]);
     }
 
-    public static function insertGroupData(string $name, string $fullname): bool|Exception
+    public static function insertGroupData(Group $group): bool|Exception
     {
-        if (self::selectGroupData($name)) {
-            return new Exception("Group data is available");
+        if (self::selectGroupData($group->name)) {
+            return new Exception("The group already exists");
         }
-        $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname) VALUES (?,?)");
-        return $stmt->execute([$name, $fullname]);
+        try {
+            $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname) VALUES (?,?)");
+            return $stmt->execute([$group->name, $group->fullname]);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
     }
 
     public static function insertUserData(User $user, array $data): bool|Exception
@@ -284,7 +289,7 @@ class DB
         }
     }
 
-    public static function selectGroupData(string $name): array|false|Exception
+    public static function selectGroupData(string $name): Group|false|Exception
     {
         if (!self::isDbConnected()) {
             return new Exception("DB connection is not connected");
@@ -300,7 +305,13 @@ class DB
             $stmt->bindParam(':name', $name, PDO::PARAM_STR);
             $stmt->execute();
 
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            if($data){
+                $group = new Group($data['id'], $data['name'], $data['fullname']);
+            }else{
+                $group = false;
+            }
+            return $group;
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }

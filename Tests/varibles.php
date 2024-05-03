@@ -1,6 +1,16 @@
 <?php
 
+use App\class\Group;
 use App\Test\CustomUser;
+
+$groups['Groups'] = [
+    new Group(1, 'IPZ', 'Инженерия програмного обеспечения'),
+    new Group(2, 'PM', 'Product Management'),
+    new Group(3, 'SS', 'Super Group'),
+];
+
+$groups['Teachers'] = $groups['Groups'][0];
+$groups['Students'] = [$groups['Groups'][1], $groups['Groups'][2]];
 
 return [
     'users' => [
@@ -67,22 +77,7 @@ return [
         ]
     ],
 
-    'groups' => [
-        'Groups' => [
-            ['name' => 'IPZ', 'fullname' => 'Инженерия програмного обеспечения'],
-            ['name' => 'PM', 'fullname' => 'Product Management'],
-            ['name' => 'SS', 'fullname' => 'Super Group']
-        ],
-
-        'Teachers' => [
-            ['name' => 'IPZ', 'fullname' => 'Инженерия програмного обеспечения']
-        ],
-
-        'Students' => [
-            ['name' => 'PM', 'fullname' => 'Product Management'],
-            ['name' => 'SS', 'fullname' => 'Super Group']
-        ],
-    ],
+    'groups' => $groups,
 
     'subjects' => [
         ['name' => 'Физкультура'],
