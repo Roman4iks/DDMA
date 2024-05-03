@@ -1,6 +1,7 @@
 <?php
 
 use App\class\Group;
+use App\class\Subject;
 use App\class\User;
 
 $groups['Groups'] = [
@@ -12,7 +13,7 @@ $groups['Groups'] = [
 $groups['Teachers'] = $groups['Groups'][0];
 $groups['Students'] = [$groups['Groups'][1], $groups['Groups'][2]];
 
-$accounts['Teachers'] = [
+$users['Teachers'] = [
     new User(
         '1', 
         'PavlovaGosha',
@@ -36,7 +37,7 @@ $accounts['Teachers'] = [
     ),
 ];
 
-$accounts['Students'] = [
+$users['Students'] = [
     new User(
         '3', 
         'PetrovMoj',
@@ -70,7 +71,7 @@ $accounts['Students'] = [
     ),
 ];
 
-$accounts['Guests'] = [
+$users['Guests'] = [
     new User(
         '6', 
         'UserTest',
@@ -86,22 +87,25 @@ $accounts['Guests'] = [
         "TESTUSER",
         "User",
         "Tests",
-        "Accounts",
+        "users",
         "2001-02-10",
         "+38099999999",
         "peest@gmail.com"
     )
 ];
 
+$subjects = [
+    new Subject(1, 'Физкультура'),
+    new Subject(2, 'Матиматика'),
+    new Subject(3, 'Информатика'),
+];
+
 return [
-    'users' => $accounts,
+    'users' => $users,
 
     'groups' => $groups,
 
-    'subjects' => [
-        ['name' => 'Физкультура'],
-        ['name' => 'Информатика']
-    ],
+    'subjects' => $subjects,
 
     // TODO PAIR
     'pairs' => [

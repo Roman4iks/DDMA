@@ -3,6 +3,7 @@
 namespace App;
 
 use App\class\Group;
+use App\class\Subject;
 use App\class\User;
 use Exception;
 use PDO;
@@ -178,7 +179,7 @@ class DB
         $stmt = self::$pdo->prepare("INSERT INTO works (task, subject_id, teacher_id, group_id, start, end) VALUES (?,?,?,?,?,?)");
 
         if ($group && $subject && $teacher) {
-            return $stmt->execute([$task, $subject['id'], $teacher['user_id'], $group->id, $start, $end]);
+            return $stmt->execute([$task, $subject->id, $teacher['user_id'], $group->id, $start, $end]);
         } else {
             return false;
         }
@@ -189,7 +190,7 @@ class DB
         if (self::selectTeacherData($teacher_id)) {
             $stmt = self::$pdo->prepare("INSERT INTO teacher_subject (teacher_id, subject_id) VALUES (?,?)");
             $subject = self::selectSubjectData($subject_name);
-            return $stmt->execute([$teacher_id, $subject['id']]);
+            return $stmt->execute([$teacher_id, $subject->id]);
         } else {
             return false;
         }
@@ -248,7 +249,7 @@ class DB
         // isTimeAvailable Проверка на пересечение с другими парами
 
         $stmt = self::$pdo->prepare("INSERT INTO pairs (subject_id, teacher_id, group_id, start, end, week, top_week) VALUES (?,?,?,?,?,?,?)");
-        return $stmt->execute([$subject['id'], $teacher['user_id'], $group->id, $start, $end, $week, $top_week]);
+        return $stmt->execute([$subject->id, $teacher['user_id'], $group->id, $start, $end, $week, $top_week]);
     }
 
     public static function selectWorkData(string $task): array|false|Exception
@@ -390,7 +391,7 @@ class DB
         }
     }
 
-    public static function selectSubjectData(string $name): array|false|Exception
+    public static function selectSubjectData(string $name): Subject|false|Exception
     {
         if (!self::isDbConnected()) {
             return new Exception("DB connection is not connected");
@@ -405,7 +406,13 @@ class DB
             $stmt->bindParam(':name', $name, PDO::PARAM_STR);
             $stmt->execute();
 
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if($data){
+                return new Subject($data['id'], $data['name']);
+            }else{
+                return false;
+            }
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }

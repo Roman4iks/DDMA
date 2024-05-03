@@ -5,6 +5,7 @@ namespace App\Test;
 require_once __DIR__ . '/../src/App/DB.php';
 
 use App\class\Group;
+use App\class\Subject;
 use App\class\User as ClassUser;
 use App\DB;
 use Exception;
@@ -196,7 +197,7 @@ class DBTest extends TestCase
     public function testInsertSubjectData(): void
     {
         foreach (self::$subjects as $subject) {
-            $result = DB::insertSubjectData($subject['name']);
+            $result = DB::insertSubjectData($subject->name);
             $this->assertTrue($result);
         }
     }
@@ -206,8 +207,8 @@ class DBTest extends TestCase
     public function testSelectSubjectData(): void
     {
         foreach (self::$subjects as $subject) {
-            $result = DB::selectSubjectData($subject['name']);
-            $this->assertIsArray($result);
+            $result = DB::selectSubjectData($subject->name);
+            $this->assertInstanceOf(Subject::class, $result);
         }
 
         $result = DB::selectSubjectData("Nothing");
@@ -224,7 +225,7 @@ class DBTest extends TestCase
             $user_id = $user->telegram_id;
 
             foreach (self::$subjects as $subject) {
-                $status = DB::insertTeacherSubjectData($user_id, $subject['name']);
+                $status = DB::insertTeacherSubjectData($user_id, $subject->name);
                 $this->assertTrue($status);
             }
         }
@@ -241,7 +242,7 @@ class DBTest extends TestCase
     //         foreach (self::$subjects as $subject){
     //             foreach (self::$groups["Groups"] as $group){
     //                 foreach (self::$users['Teachers'] as $teacher){
-    //                     $result = DB::insertPairData($subject['name'], $teacher->telegram_id, $group->name, $pair['start'], $pair['end'], $pair['week']);
+    //                     $result = DB::insertPairData($subject->name, $teacher->telegram_id, $group->name, $pair['start'], $pair['end'], $pair['week']);
     //                     $this->assertTrue($result);
     //                 }
     //             }
@@ -254,8 +255,8 @@ class DBTest extends TestCase
     public function testSelectTeacherSubjectData(): void
     {
         foreach (self::$subjects as $subject) {
-            $result = DB::selectSubjectData($subject['name']);
-            $this->assertIsArray($result);
+            $result = DB::selectSubjectData($subject->name);
+            $this->assertInstanceOf(Subject::class ,$result);
         }
 
         $result = DB::selectSubjectData("Nothing");
@@ -491,7 +492,7 @@ class DBTest extends TestCase
         try {
             foreach (self::$subjects as $subject) {
                 $stmt = self::$pdo->prepare('DELETE FROM subjects WHERE name = :name');
-                $stmt->bindParam(':name', $subject['name'], PDO::PARAM_STR);
+                $stmt->bindParam(':name', $subject->name, PDO::PARAM_STR);
                 $stmt->execute();
             }
         } catch (PDOException $e) {
