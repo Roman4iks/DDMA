@@ -5,6 +5,7 @@ namespace App\Test;
 require_once __DIR__ . '/../src/App/DB.php';
 
 use App\class\Group;
+use App\class\User as ClassUser;
 use App\DB;
 use Exception;
 use PDO;
@@ -55,10 +56,15 @@ class DBTest extends TestCase
     {
         foreach (self::$users as $role) {
             foreach ($role as $user) {
-                $result = DB::insertUserData($user[0], $user[1]);
+                $result = DB::insertUserData($user);
                 $this->assertTrue($result);
             }
         }
+
+        $user = self::$users['Teachers'][0];
+        $result = DB::insertUserData($user);
+        $this->assertInstanceOf(Exception::class, $result);
+        $this->assertEquals("User is already", $result->getMessage());
     }
 
     #[Test]
@@ -67,14 +73,14 @@ class DBTest extends TestCase
     {
         foreach (self::$users as $role) {
             foreach ($role as $user) {
-                $expectedResult = ['telegram_id' => $user[0]->getId(), 'telegram_username' => $user[0]->getUsername(), 'validate' => 0] + $user[1];
-                $result = DB::selectUserData($expectedResult['telegram_id']);
-                $this->assertIsArray($result);
+                $expectedResult = $user;
+                $result = DB::selectUserData($user->telegram_id);
+                $this->assertInstanceOf(ClassUser::class, $result);
                 $this->assertEquals($expectedResult, $result);
             }
         }
         $result = DB::selectUserData(100000);
-        $this->assertEmpty($result);
+        $this->assertFalse($result);
     }
 
     #[Test]
@@ -86,7 +92,6 @@ class DBTest extends TestCase
         }
 
         $result = DB::insertGroupData(self::$groups['Groups'][0]);
-
         $this->assertInstanceOf(Exception::class, $result, "Group has Database");
     }
 
@@ -96,10 +101,9 @@ class DBTest extends TestCase
     {
         foreach (self::$groups['Groups'] as $group) {
             $result = DB::selectGroupData($group->name);
+            $this->assertInstanceOf(Group::class, $result);
             $this->assertEquals($result, $group);
         }
-
-
 
         $result = DB::selectGroupData("DDDD");
         $this->assertFalse($result);
@@ -529,7 +533,8 @@ class DBTest extends TestCase
         }
 
         try {
-            $stmt = self::$pdo->prepare('ALTER TABLE groups AUTO_INCREMENT = 1;
+            $stmt = self::$pdo->prepare('
+            ALTER TABLE groups AUTO_INCREMENT = 1;
             ALTER TABLE works AUTO_INCREMENT = 1;
             ALTER TABLE subjects AUTO_INCREMENT = 1;');
             $stmt->execute();

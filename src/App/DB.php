@@ -3,8 +3,8 @@
 namespace App;
 
 use App\class\Group;
+use App\class\User;
 use Exception;
-use Longman\TelegramBot\Entities\User;
 use PDO;
 use PDOException;
 
@@ -116,27 +116,18 @@ class DB
         }
     }
 
-    public static function insertUserData(User $user, array $data): bool|Exception
+    public static function insertUserData(User $user): bool|Exception
     {
         if (!self::isDbConnected()) {
             return new Exception("DB connection is not connected");
         }
 
-        if (self::selectUserData($user->getId())) {
+        if (self::selectUserData($user->telegram_id)) {
             return new Exception("User is already");
         }
 
-        $telegram_id = $user->getId();
-        $telegram_username = $user->getUsername();
-        $first_name = $data['first_name'];
-        $middle_name = $data['middle_name'];
-        $second_name = $data['second_name'];
-        $birthday = $data['birthday'];
-        $email = $data['email'];
-        $phone = $data['phone'];
-
         try {
-            $sth = self::$pdo->prepare('
+            $stmt = self::$pdo->prepare('
                 INSERT INTO users
                 (telegram_id, telegram_username, first_name, middle_name, second_name, email, phone, birthday)
                 VALUES
@@ -151,7 +142,16 @@ class DB
                 birthday = VALUES(birthday)
             ');
 
-            return $sth->execute([$telegram_id, $telegram_username, $first_name, $middle_name, $second_name, $email, $phone, $birthday]);
+            return $stmt->execute([
+                $user->telegram_id,
+                $user->telegram_username,
+                $user->first_name,
+                $user->middle_name,
+                $user->second_name,
+                $user->email,
+                $user->phone,
+                $user->birthday
+            ]);
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -161,23 +161,23 @@ class DB
     public static function insertPairData(string $subject_name, int $teacher_id, string $group_name, string $start, string $end, int $week, int $top_week = 0): bool|Exception
     {
         $group = self::selectGroupData($group_name);
-        
+
         if (!$group) {
             return new Exception("Group data is not available");
         }
-        
+
         $teacher = self::selectTeacherData($teacher_id);
-        
-        if (!$teacher){
+
+        if (!$teacher) {
             return new Exception("Teacher data is not available");
         }
-        
+
         $subject = self::selectSubjectData($subject_name);
-        if (!$subject){
+        if (!$subject) {
             return new Exception("Subject data is not available");
         }
-        
-        if(strtotime($start) > strtotime($end)){
+
+        if (strtotime($start) > strtotime($end)) {
             return new Exception("Data time is not variable");
         }
 
@@ -187,7 +187,7 @@ class DB
         return $stmt->execute([$subject['id'], $teacher['user_id'], $group['id'], $start, $end, $week, $top_week]);
     }
 
-    public static function selectUserData(int $telegramId): array|false|Exception
+    public static function selectUserData(string $telegramId): User|false|Exception
     {
         if (!self::isDbConnected()) {
             return new Exception("DB connection is not connected");
@@ -203,7 +203,23 @@ class DB
             $stmt->bindParam(':user_id', $telegramId, PDO::PARAM_STR);
             $stmt->execute();
 
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if($data)
+            {
+                return new User(
+                    $data['telegram_id'],
+                    $data['telegram_username'],
+                    $data['first_name'],
+                    $data['middle_name'],
+                    $data['second_name'],
+                    $data['birthday'],
+                    $data['phone'],
+                    $data['email']
+                );
+            }else{
+                return false;
+            }
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -306,12 +322,11 @@ class DB
             $stmt->execute();
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
-            if($data){
-                $group = new Group($data['id'], $data['name'], $data['fullname']);
-            }else{
-                $group = false;
+            if ($data) {
+                return new Group($data['id'], $data['name'], $data['fullname']);
+            } else {
+                return false;
             }
-            return $group;
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }

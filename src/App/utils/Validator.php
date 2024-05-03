@@ -6,41 +6,34 @@ use Longman\TelegramBot\TelegramLog;
 
 class Validator
 {
-    public static function validateString(string $text): bool
+    public static function validateString(string $str): bool
     {
-        if (!preg_match('/^[a-zA-Zа-яА-ЯёЁҐґЄєІіЇї]+$/u', $text)) {
-            TelegramLog::debug("Invalid string -> " . $text);
-            return true;
+        if (!preg_match('/^[a-zA-Zа-яА-ЯёЁҐґЄєІіЇї]+$/u', $str)) {
+            TelegramLog::debug("Invalid string -> " . $str);
+            return false;
         }
-        return false;
+        return true;
     }
 
-    public static function validateDate(string $text): string
+    public static function validateDate(string $date): bool
     {
-        $date = \DateTime::createFromFormat('Y-m-d', $text);
-        if (!$date || $date->format('Y-m-d') !== $text) {
-            TelegramLog::debug("Invalid string date format -> " . $text);
-            return 'Год рождения не соответствует формату';
+        $formattedDate = \DateTime::createFromFormat('Y-m-d', $date);
+        if (!$formattedDate || $formattedDate->format('Y-m-d') !== $date) {
+            TelegramLog::debug("Invalid string date format -> " . $date);
+            return false;
         }
-
-        $min_year = (new \DateTime())->modify('-12 years')->format('Y');
-
-        if ($date->format('Y') > $min_year) {
-            TelegramLog::debug("Invalid string date min_year -> " . $text);
-            return 'Год рождения должен быть не ранее ' . $min_year;
-        }
-
-        list($year, $month, $day) = explode('-', $text);
-        if (!checkdate((int)$month, (int)$day, (int)$year)) {
-            TelegramLog::debug("Invalid string date existence -> " . $text);
-            return 'Указанная дата не существует';
-        }
-
-        return false;
+    
+        return true;
     }
 
     public static function validateEmail(string $email): bool
     {
-        return filter_var($email, FILTER_VALIDATE_EMAIL) === false;
+        $validate = filter_var($email, FILTER_VALIDATE_EMAIL);
+        if(!$validate){
+            TelegramLog::debug("Invalid email format -> " . $email);
+            return false;
+        }
+
+        return true;
     }
 }

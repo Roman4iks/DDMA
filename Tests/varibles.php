@@ -1,6 +1,7 @@
 <?php
 
 use App\class\Group;
+use App\class\User;
 use App\Test\CustomUser;
 
 $groups['Groups'] = [
@@ -12,70 +13,89 @@ $groups['Groups'] = [
 $groups['Teachers'] = $groups['Groups'][0];
 $groups['Students'] = [$groups['Groups'][1], $groups['Groups'][2]];
 
+$accounts['Teachers'] = [
+    new User(
+        '1', 
+        'PavlovaGosha',
+        "Pavlova",
+        "Fucture",
+        "Sergeevna",
+        "2005-04-12",
+        "+38077777777",
+        "pavlova@gmail.com",
+    ),
+
+    new User(
+        '2', 
+        'VolodimirGoChat',
+        "Volodimir",
+        "Pososo",
+        "Logoso",
+        "1985-02-10",
+        "+38099999999",
+        "Volodi@gmail.com",
+    ),
+];
+
+$accounts['Students'] = [
+    new User(
+        '3', 
+        'PetrovMoj',
+        "Petrov",
+        "Loken",
+        "Moken",
+        "2001-02-10",
+        "+38099999999",
+        "petrovthebest@gmail.com"
+    ),
+    new User(
+        '4', 
+        'OlexeyBog',
+        "Wolf",
+        "Soken",
+        "Moken",
+        "2001-02-10",
+        "+38099999999",
+        "petrovthe@gmail.com",
+    ),
+
+    new User(
+        '5', 
+        'MogalogBogenka',
+        "Popo",
+        "Papa",
+        "Nano",
+        "2001-02-10",
+        "+38099999999",
+        "petebest@gmail.com"
+    ),
+];
+
+$accounts['Guests'] = [
+    new User(
+        '6', 
+        'UserTest',
+        "Test",
+        "User",
+        "Account",
+        "2001-02-10",
+        "+38099999999",
+        "test@gmail.com",
+    ),
+    new User(
+        '7',
+        "TESTUSER",
+        "User",
+        "Tests",
+        "Accounts",
+        "2001-02-10",
+        "+38099999999",
+        "peest@gmail.com"
+    )
+];
+
 return [
-    'users' => [
-        'Guests' => [
-            [
-                new CustomUser(0, 'Test'),
-                [
-                    'first_name' => "TestName",
-                    'middle_name' => "TestMiddle",
-                    'second_name' => "TestSecond",
-                    'birthday' => "2005-04-01",
-                    'email' => "test@gmail.com",
-                    'phone' => "+3800000000"
-                ]
-            ]
-        ],
-        'Teachers' => [
-            [
-                new CustomUser(1, 'Pavlova'),
-                [
-                    'first_name' => "Pavlova",
-                    'middle_name' => "Fucture",
-                    'second_name' => "Sergeevna",
-                    'birthday' => "2005-04-12",
-                    'email' => "pavlova@gmail.com",
-                    'phone' => "+38077777777"
-                ]
-            ]
-        ],
-        'Students' => [
-            [
-                new CustomUser(2, 'Petrov'),
-                [
-                    'first_name' => "Petrov",
-                    'middle_name' => "Loken",
-                    'second_name' => "Moken",
-                    'birthday' => "2001-02-10",
-                    'email' => "petrovthebest@gmail.com",
-                    'phone' => "+38099999999"
-                ]
-            ],
-            [
-                new CustomUser(3, 'Petrov'),
-                [
-                    'first_name' => "Wolf",
-                    'middle_name' => "Soken",
-                    'second_name' => "Moken",
-                    'birthday' => "2001-02-10",
-                    'email' => "petrovthebest@gmail.com",
-                    'phone' => "+38099999999"
-                ]
-            ],
-            [
-                new CustomUser(4, 'Petrov'),
-                [
-                    'first_name' => "Popo",
-                    'middle_name' => "Papa",
-                    'second_name' => "Nano",
-                    'birthday' => "2001-02-10",
-                    'email' => "petrovthebest@gmail.com",
-                    'phone' => "+38099999999"
-                ]
-            ]
-        ]
-    ],
+    'users' => $accounts,
 
     'groups' => $groups,
 
