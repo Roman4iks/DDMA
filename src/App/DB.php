@@ -481,8 +481,6 @@ class DB
         }
     }
 
-    
-
     public static function selectCompletedWorksData(int $id, int $student_id): array|false|Exception
     {
         if (!self::isDbConnected()) {
@@ -829,5 +827,27 @@ class DB
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
+    }
+    
+    public static function getUserRole($telegramId)
+    {
+        $stmt = self::$pdo->prepare("SELECT 'student' AS role FROM students WHERE user_id = :telegram_id");
+        $stmt->bindParam(':telegram_id', $telegramId);
+        $stmt->execute();
+        
+        if ($stmt->fetchColumn()) {
+            return 'student';
+        }
+
+        // Проверка, если пользователь преподаватель
+        $stmt = self::$pdo->prepare("SELECT 'teacher' AS role FROM teachers WHERE user_id = :telegram_id");
+        $stmt->bindParam(':telegram_id', $telegramId);
+        $stmt->execute();
+        
+        if ($stmt->fetchColumn()) {
+            return 'teacher';
+        }
+
+        return 'Guest';
     }
 }
