@@ -27,7 +27,7 @@ class DBTest extends TestCase
     private static $pairs;
 
 
-    public static function setUpBeforeClass(): void
+    public function setUp(): void
     {
         $config = require __DIR__ . '/../config.php';
         self::$pdo = DB::initialize($config['database']);
@@ -37,9 +37,84 @@ class DBTest extends TestCase
         self::$users = $data['users'];
         self::$groups = $data['groups'];
         self::$subjects = $data['subjects'];
-        // self::$completed_works = $data['pairs'];
         self::$works = $data['works'];
         self::$completed_works = $data['completed_works'];
+    }
+    
+    public static function tearDownAfterClass(): void
+    {
+        try {
+            foreach (self::$users as $role) {
+                foreach ($role as $user) {
+                    $user_id = $user->telegram_id;
+                    $stmt = self::$pdo->prepare('DELETE FROM users WHERE telegram_id = :telegram_id');
+                    $stmt->bindParam(':telegram_id', $user_id, PDO::PARAM_INT);
+                    $stmt->execute();
+                }
+            }
+        } catch (PDOException $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        try {
+            foreach (self::$groups['Groups'] as $group) {
+                $stmt = self::$pdo->prepare('DELETE FROM groups WHERE name = :name');
+                $stmt->bindParam(':name', $group->name, PDO::PARAM_STR);
+                $stmt->execute();
+            }
+        } catch (PDOException $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        try {
+            foreach (self::$subjects as $subject) {
+                $stmt = self::$pdo->prepare('DELETE FROM subjects WHERE name = :name');
+                $stmt->bindParam(':name', $subject->name, PDO::PARAM_STR);
+                $stmt->execute();
+            }
+        } catch (PDOException $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        try {
+            foreach (self::$works as $work) {
+                $stmt = self::$pdo->prepare('DELETE FROM works WHERE task = :name');
+                $stmt->bindParam(':name', $work['task'], PDO::PARAM_STR);
+                $stmt->execute();
+            }
+        } catch (PDOException $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        // try {
+        //     foreach (self::$completed_works as $completeWork) {
+        //         $stmt = self::$pdo->prepare('DELETE FROM completed_works WHERE work_id = :work_id');
+
+        //         $work_data = DB::selectWorkData($completeWork['task']);
+        //         if ($work_data !== false && isset($work_data['work_id'])) {
+        //             $work_id = $work_data['work_id'];
+        //         } else {
+        //             continue;
+        //         }
+
+        //         $stmt->bindParam(':work_id', $work_id, PDO::PARAM_STR);
+        //         $stmt->execute();
+        //     }
+        // } catch (PDOException $e) {
+        //     throw new Exception($e->getMessage());
+        // }
+
+        try {
+            $stmt = self::$pdo->prepare('
+            ALTER TABLE groups AUTO_INCREMENT = 1;
+            ALTER TABLE works AUTO_INCREMENT = 1;
+            ALTER TABLE subjects AUTO_INCREMENT = 1;');
+            $stmt->execute();
+        } catch (PDOException $e) {
+            throw new Exception($e->getMessage());
+        }
+        // Clean up PDO instance after testing
+        self::$pdo = null;
     }
 
     #[Test]
@@ -321,9 +396,8 @@ class DBTest extends TestCase
     #[Depends('testInsertTeacherData')]
     public function testInsertCompletedWorkData(): void
     {
-        foreach (self::$completed_works as $i => $completeWork) {
-            self::$completed_works[$i]['task'] = self::$works[0][$i]->task;
-            $result = DB::insertCompletedWorkData(self::$works[0][$i]->task, $completeWork['student_id'], $completeWork['grade']);
+        foreach (self::$completed_works as $completeWork) {
+            $result = DB::insertCompletedWorkData($completeWork);
             $this->assertTrue($result);
         }
     }
@@ -332,8 +406,8 @@ class DBTest extends TestCase
     #[Depends('testInsertCompletedWorkData')]
     public function testSelectCompletedWorksData(): void
     {
-        foreach (self::$completed_works as $completedWorks) {
-            $result = DB::selectCompletedWorksData($completedWorks['task']);
+        foreach (self::$completed_works as $completedWork) {
+            $result = DB::selectCompletedWorksData($completedWork->workId, $completedWork->studentId);
             $this->assertIsArray($result);
 
             $expectedKeys = ['teacher_id', 'student_id', 'work_id', 'finish', 'grade'];
@@ -469,79 +543,5 @@ class DBTest extends TestCase
         }
     }
 
-    public static function tearDownAfterClass(): void
-    {
-        try {
-            foreach (self::$users as $role) {
-                foreach ($role as $user) {
-                    $user_id = $user->telegram_id;
-                    $stmt = self::$pdo->prepare('DELETE FROM users WHERE telegram_id = :telegram_id');
-                    $stmt->bindParam(':telegram_id', $user_id, PDO::PARAM_INT);
-                    $stmt->execute();
-                }
-            }
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        try {
-            foreach (self::$groups['Groups'] as $group) {
-                $stmt = self::$pdo->prepare('DELETE FROM groups WHERE name = :name');
-                $stmt->bindParam(':name', $group->name, PDO::PARAM_STR);
-                $stmt->execute();
-            }
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        try {
-            foreach (self::$subjects as $subject) {
-                $stmt = self::$pdo->prepare('DELETE FROM subjects WHERE name = :name');
-                $stmt->bindParam(':name', $subject->name, PDO::PARAM_STR);
-                $stmt->execute();
-            }
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        try {
-            foreach (self::$works as $work) {
-                $stmt = self::$pdo->prepare('DELETE FROM works WHERE task = :name');
-                $stmt->bindParam(':name', $work['task'], PDO::PARAM_STR);
-                $stmt->execute();
-            }
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        try {
-            foreach (self::$completed_works as $completeWork) {
-                $stmt = self::$pdo->prepare('DELETE FROM completed_works WHERE work_id = :work_id');
-
-                $work_data = DB::selectWorkData($completeWork['task']);
-                if ($work_data !== false && isset($work_data['work_id'])) {
-                    $work_id = $work_data['work_id'];
-                } else {
-                    continue;
-                }
-
-                $stmt->bindParam(':work_id', $work_id, PDO::PARAM_STR);
-                $stmt->execute();
-            }
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        try {
-            $stmt = self::$pdo->prepare('
-            ALTER TABLE groups AUTO_INCREMENT = 1;
-            ALTER TABLE works AUTO_INCREMENT = 1;
-            ALTER TABLE subjects AUTO_INCREMENT = 1;');
-            $stmt->execute();
-        } catch (PDOException $e) {
-            throw new Exception($e->getMessage());
-        }
-        // Clean up PDO instance after testing
-        self::$pdo = null;
-    }
+    
 }

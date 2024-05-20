@@ -1,5 +1,6 @@
 <?php
 
+use App\class\CompletedWork;
 use App\class\Group;
 use App\class\Subject;
 use App\class\User;
@@ -189,6 +190,14 @@ $works = [
         ]
 ];
 
+$CompletedWorks = 
+[
+    new CompletedWork($works[0][0]->teacher_id, $users['Students'][0]->telegram_id, 1, "2020-01-03 12:15", '5'),
+    new CompletedWork($works[0][0]->teacher_id, $users['Students'][0]->telegram_id, 2, "2020-01-05 15:15", '5'),
+    new CompletedWork($works[0][0]->teacher_id, $users['Students'][2]->telegram_id, 3, "2020-05-02 15:15", '5'),
+    new CompletedWork($works[0][0]->teacher_id, $users['Students'][1]->telegram_id, 1, "2020-01-05 15:10", '5'),
+];
+
 return [
     'users' => $users,
 
@@ -200,31 +209,8 @@ return [
 
     'works' => $works,
 
-    'completed_works' =>
-    [
-        [
-            'student_id' => 3,
-            'grade' => 2,
-        ],
-        [
-            'student_id' => 3,
-            'grade' => 3,
-        ],
-        [
-            'student_id' => 4,
-            'grade' => 5,
-        ],
-        [
-            'student_id' => 5,
-            'grade' => 1,
-        ],
-        [
-            'student_id' => 4,
-            'grade' => 4,
-        ]
-        ],
-
-        // // TODO PAIR
+    'completed_works' => $CompletedWorks,
+    
     // 'pairs' => [
     //     [
     //         'start' => '12:00',
