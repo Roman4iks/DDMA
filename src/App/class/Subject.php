@@ -6,10 +6,10 @@ use App\utils\Validator;
 
 class Subject 
 {
-    public $id;
-    public $name;
+    public ?int $id;
+    public string $name;
 
-    public function __construct($id, $name)
+    public function __construct($name, $id = null)
     {
         $this->id = $id;
 

@@ -4,7 +4,6 @@ config.php
 vendor
 Upload
 Download
-Commands
 php-telegram-bot-debug.log
 php-telegram-bot-error.log
 php-telegram-bot-update.log

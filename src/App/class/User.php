@@ -2,9 +2,7 @@
 
 namespace App\class;
 
-use App\utils\Validator;
-use InvalidArgumentException;
-use Longman\TelegramBot\Entities\User as UserTelegram;
+use App\DB;
 
 class User {
     public string $telegram_id;
@@ -13,13 +11,14 @@ class User {
     public string $middle_name;
     public string $second_name;
     public string $birthday;
-    public string $email;
+    public ?string $email = null;
     public string $phone;
 
-    public function __construct($telegram_id, $telegram_username, $firstName = null, $middleName = null, $secondName = null, $birthday = null, $phone = null, $email = null)
+    public function __construct($telegram_id, $telegram_username, $firstName = '', $middleName = '', $secondName = '', $birthday = '', $phone = '', $email = null)
     {
         $this->telegram_id = $telegram_id;
         $this->telegram_username = $telegram_username;
+
         if ($email !== null) {
             $this->addEmail($email);
         }
@@ -40,55 +39,42 @@ class User {
         }
     }
 
-    public static function createFromData($id, $username, $data = [])
-    {
-        $newUser = new self($id, $username);
-        foreach ($data as $key => $value) {
-            $method = 'add' . ucfirst($key);
-            if (method_exists($newUser, $method)) {
-                $newUser->$method($value);
-            }
-        }
-        return $newUser;
+    public function printData(): string {
+        return sprintf(
+            "Telegram ID: %s\nTelegram Username: %s\nFirst Name: %s\nMiddle Name: %s\nSecond Name: %s\nBirthday: %s\nEmail: %s\nPhone: %s",
+            $this->telegram_id,
+            $this->telegram_username,
+            $this->first_name,
+            $this->middle_name,
+            $this->second_name,
+            $this->birthday,
+            $this->email ?? 'null',
+            $this->phone
+        );
     }
+    
 
-    public function addEmail(string $email)
+    public function addEmail(?string $email)
     {
-        if (!Validator::validateEmail($email)) {
-            throw new InvalidArgumentException("Invalid email address");
-        }
         $this->email = $email;
     }
 
     public function addBirthday(string $date){
-        if (!Validator::validateDate($date)) {
-            throw new InvalidArgumentException("Invalid birthday date");
-        }
         $this->birthday = $date;
     }
 
     public function addFirstName(string $firstName)
     {
-        if (!Validator::validateString($firstName)) {
-            throw new InvalidArgumentException("Invalid full name");
-        }
         $this->first_name = $firstName;
     }
 
     public function addSecondName(string $secondName)
     {
-        if (!Validator::validateString($secondName)) {
-            throw new InvalidArgumentException("Invalid full name");
-        }
         $this->second_name = $secondName;
     }
 
-    
     public function addMiddleName(string $middleName)
     {
-        if (!Validator::validateString($middleName)) {
-            throw new InvalidArgumentException("Invalid full name");
-        }
         $this->middle_name = $middleName;
     }
 
@@ -96,5 +82,17 @@ class User {
     public function addPhone(string $phone)
     {
         $this->phone = $phone;
+    }
+
+    public function isReadyForSave(): bool {
+        return isset($this->first_name, $this->middle_name, $this->second_name, $this->birthday, $this->phone);
+    }
+
+    public function saveToDatabase() {
+        if (!$this->isReadyForSave()) {
+            throw new \Exception('Varibles are required before saving to database.');
+        }
+
+        DB::insertUserData($this);
     }
 }

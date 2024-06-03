@@ -205,12 +205,10 @@ return [
 
     'subjects' => $subjects,
 
-
-
     'works' => $works,
 
     'completed_works' => $CompletedWorks,
-    
+
     // 'pairs' => [
     //     [
     //         'start' => '12:00',

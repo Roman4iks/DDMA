@@ -26,6 +26,17 @@ class Validator
         return true;
     }
 
+    public static function validateDateAndTime(string $date): bool
+    {
+        $formattedDate = \DateTime::createFromFormat('Y-m-d H:i', $date);
+        if (!$formattedDate || $formattedDate->format('Y-m-d H:i') !== $date) {
+            TelegramLog::debug("Invalid string date format -> " . $date);
+            return false;
+        }
+    
+        return true;
+    }
+
     public static function validateEmail(string $email): bool
     {
         $validate = filter_var($email, FILTER_VALIDATE_EMAIL);

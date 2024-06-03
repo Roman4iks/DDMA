@@ -125,8 +125,8 @@ class DB
             return new Exception("The group already exists");
         }
         try {
-            $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname) VALUES (?,?)");
-            return $stmt->execute([$group->name, $group->fullname]);
+            $stmt = self::$pdo->prepare("INSERT INTO groups (name, fullname, group_link) VALUES (?,?,?)");
+            return $stmt->execute([$group->name, $group->fullname, $group->link]);
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -150,7 +150,7 @@ class DB
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($data) {
-                return new Group($data['id'], $data['name'], $data['fullname']);
+                return new Group($data['name'], $data['fullname'], !$data['link'] ? "null" : $data['link'], $data['id']);
             } else {
                 return false;
             }
@@ -159,13 +159,11 @@ class DB
         }
     }
 
-    public static function insertSubjectData(string $subject_name): bool
+    public static function insertSubjectData(Subject $subject): bool
     {
-        $subject = DB::selectSubjectData($subject_name);
-
-        if (!$subject) {
+        if (!DB::selectSubjectData($subject->name)) {
             $stmt = self::$pdo->prepare("INSERT INTO subjects (name) VALUES (?)");
-            return $stmt->execute([$subject_name]);
+            return $stmt->execute([$subject->name]);
         } else {
             return false;
         }
@@ -189,7 +187,7 @@ class DB
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if($data){
-                return new Subject($data['id'], $data['name']);
+                return new Subject($data['name'], $data['id']);
             }else{
                 return false;
             }
@@ -420,12 +418,41 @@ class DB
             $groups = [];
             if ($data) {
                 foreach ($data as $group) {
-                    array_push($groups, new Group($group['id'], $group['name'], $group['fullname']));
+                    array_push($groups, new Group($group['name'], $group['fullname'], $group['link'], $group['id']));
                 }
             } else {
                 return false;
             }
             return $groups;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllSubjectsData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT *
+            FROM `subjects`  
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $subjects = [];
+            if ($data) {
+                foreach ($data as $subject) {
+                    array_push($subjects, new Subject($subject['name'], $subject['id']));
+                }
+            } else {
+                return false;
+            }
+            return $subjects;
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -574,8 +601,11 @@ class DB
                 completed_works cw ON s.user_id = cw.student_id
             LEFT JOIN 
                 works w ON cw.work_id = w.id
+            LEFT JOIN 
+                groups g ON s.group_id = g.id
             WHERE 
                 s.user_id = :student_id
+                AND g.id = w.group_id -- Проверка соответствия группы студента и группы для задания
             GROUP BY 
                 s.user_id, w.subject_id) AS completed_works ON all_subjects.id = completed_works.subject_id
         LEFT JOIN 
@@ -584,14 +614,17 @@ class DB
                 COUNT(*) AS pending_works_count
             FROM 
                 works w
+            LEFT JOIN 
+                groups g ON w.group_id = g.id
             WHERE 
                 w.id NOT IN (SELECT work_id FROM completed_works WHERE student_id = :student_id)
+                AND g.id = (SELECT g.id FROM students st JOIN groups g ON st.group_id = g.id WHERE st.user_id = :student_id) -- Проверка соответствия группы студента и группы для задания
             GROUP BY 
                 w.subject_id) AS pending_works ON all_subjects.id = pending_works.subject_id
         LEFT JOIN 
             students s ON s.user_id = :student_id
         LEFT JOIN 
-            users u ON s.user_id = u.telegram_id;        
+            users u ON s.user_id = u.telegram_id;            
                 ";
 
             $stmt = self::$pdo->prepare($query);
@@ -626,6 +659,41 @@ class DB
             return new Exception($e->getMessage());
         }
     }
+
+    public static function getTotalUncompletedWorksFromSubjectWithStudent(int $user_id): array|bool|Exception
+    {
+            if (!self::isDbConnected()) {
+                return new Exception("DB connection is not connected");
+            }
+    
+            try {
+                $query = "
+                SELECT 
+                s.name AS subject, 
+                COUNT(*) AS total_works
+            FROM 
+                works w 
+            JOIN 
+                subjects s ON w.subject_id = s.id 
+            JOIN 
+                groups g ON w.group_id = g.id 
+            LEFT JOIN 
+                completed_works cw ON w.id = cw.work_id AND cw.student_id = :student_id
+            WHERE 
+                g.name = (SELECT g.name FROM students st JOIN groups g ON st.group_id = g.id WHERE st.user_id = :student_id)
+            GROUP BY 
+                w.subject_id;
+                    ";
+    
+                $stmt = self::$pdo->prepare($query);
+                $stmt->bindParam(':student_id', $user_id, PDO::PARAM_STR);
+                $stmt->execute();
+    
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                return new Exception($e->getMessage());
+            }
+        }
 
     public static function getTotalWorksFromSubjectWithGroup(string $group_name): array|bool|Exception
     {
@@ -663,21 +731,25 @@ class DB
         try {
             $query = "
             SELECT
-                w.task,
-                s.name,
-                w.start,
-                w.end,
-                CONCAT(u.first_name, ' ', u.middle_name, ' ', u.second_name) AS teacher_fullname
-            FROM
-                works w
-            LEFT JOIN
-                completed_works cw ON w.id = cw.work_id AND cw.student_id = :student_id
-            LEFT JOIN
-                subjects s ON w.subject_id = s.id
-            LEFT JOIN
-                users u ON w.teacher_id = u.telegram_id
-            WHERE
-                cw.student_id IS NULL;
+            w.task,
+            s.name,
+            w.start,
+            w.end,
+            CONCAT(teacher.first_name, ' ', teacher.middle_name, ' ', teacher.second_name) AS teacher_fullname
+        FROM
+            works w
+        LEFT JOIN
+            completed_works cw ON w.id = cw.work_id
+        LEFT JOIN
+            subjects s ON w.subject_id = s.id
+        LEFT JOIN
+            users teacher ON w.teacher_id = teacher.telegram_id
+        LEFT JOIN
+            groups g ON w.group_id = g.id   
+        LEFT JOIN 
+            students st ON st.user_id = :student_id
+        WHERE
+            cw.student_id IS NULL AND g.id = st.group_id;
         ";
 
             $stmt = self::$pdo->prepare($query);
@@ -707,14 +779,19 @@ class DB
             FROM
                 works w
             LEFT JOIN
-                completed_works cw ON w.id = cw.work_id AND cw.student_id = :student_id
+                completed_works cw ON w.id = cw.work_id
             LEFT JOIN
                 subjects s ON w.subject_id = s.id
             LEFT JOIN
                 users u ON w.teacher_id = u.telegram_id
+            LEFT JOIN
+                groups g ON w.group_id = g.id   
+            LEFT JOIN 
+                students st ON st.user_id = :student_id
             WHERE
                 cw.student_id IS NULL
-                AND w.end < CURRENT_DATE;
+                AND w.end < CURRENT_DATE
+                AND g.id = st.group_id;
         ";
 
             $stmt = self::$pdo->prepare($query);
@@ -756,8 +833,14 @@ class DB
             w.subject_id = s.id
         LEFT JOIN users u ON
             w.teacher_id = u.telegram_id
+        LEFT JOIN
+            groups g ON w.group_id = g.id   
+        LEFT JOIN 
+            students st ON st.user_id = :student_id
         WHERE
-            YEARWEEK(w.end, 1) <= YEARWEEK(CURRENT_DATE(), 1) AND cw.student_id IS NULL;
+            YEARWEEK(w.end, 1) <= YEARWEEK(CURRENT_DATE(), 1) 
+            AND cw.student_id IS NULL
+            AND g.id = st.group_id;;
         ";
 
             $stmt = self::$pdo->prepare($query);

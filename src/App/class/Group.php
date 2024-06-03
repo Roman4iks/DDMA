@@ -3,14 +3,16 @@
 namespace App\class;
 
 class Group {
-    public $id;
-    public $name;
-    public $fullname;
+    public string $name;
+    public string $fullname;
+    public ?string $link;
+    public ?int $id;
 
-    public function __construct($id, $name, $fullname) {
+    public function __construct($name, $fullname, $link = null, $id = null) {
         $this->id = $id;
         $this->name = $name;
         $this->fullname = $fullname;
+        $this->link = $link;
     }
 }
 

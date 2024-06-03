@@ -11,12 +11,12 @@ class Work {
     public $start;
     public $end;
 
-    public function __construct($task, $subject_id, $teacher_id, $group_id, $start, $end, $id = null) {
+    public function __construct($task, $subject_id, $teacher_id, $group_name, $start, $end, $id = null) {
         $this->id = $id;
         $this->task = $task;
         $this->subject_name = $subject_id;
         $this->teacher_id = $teacher_id;
-        $this->group_name = $group_id;
+        $this->group_name = $group_name;
         $this->start = $start;
         $this->end = $end;
     }
