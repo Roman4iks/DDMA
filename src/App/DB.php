@@ -8,6 +8,7 @@ use App\class\Subject;
 use App\class\User;
 use App\class\Work;
 use Exception;
+use Longman\TelegramBot\TelegramLog;
 use PDO;
 use PDOException;
 
@@ -132,6 +133,21 @@ class DB
         }
     }
 
+    public static function deleteGroupData(Group $group): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("
+            DELETE FROM teachers WHERE group_id = :group_id;
+            DELETE FROM groups WHERE id = :group_id");
+            $stmt->bindParam(':group_id', $group->id, PDO::PARAM_STR);
+            $result = $stmt->execute();
+
+            return $result;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
     public static function selectGroupData(string $name): Group|false|Exception
     {
         if (!self::isDbConnected()) {
@@ -150,7 +166,159 @@ class DB
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($data) {
+                $link = !$data['link'] ? "null" : $data['link'];
+                return new Group($data['name'], $data['fullname'], $link, $data['id']);
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectGroupDataById(int $id): Group|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT * 
+            FROM `groups` 
+            WHERE `id` = :id
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':id', $id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($data) {
                 return new Group($data['name'], $data['fullname'], !$data['link'] ? "null" : $data['link'], $data['id']);
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectColumnGroupData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'collage' AND TABLE_NAME = 'groups';
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $data;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectColumnSubjectData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'collage' AND TABLE_NAME = 'subjects';
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $data;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function updateGroupData(string $column, string $new_data, string $group_name): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("UPDATE `groups` SET `$column` = :new_data WHERE `name` = :group_name;");
+            $stmt->bindParam(':group_name', $group_name, PDO::PARAM_STR);
+            $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    
+    public static function updateSubjectData(string $column, string $new_data, string $subject_name): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("UPDATE `subjects` SET `$column` = :new_data WHERE `name` = :subject_name;");
+            $stmt->bindParam(':subject_name', $subject_name, PDO::PARAM_STR);
+            $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllStudentsDataByGroup(int $group_id): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT * 
+            FROM `students` 
+            WHERE `group_id` = :group_id
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':group_id', $group_id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($data) {
+                return $data;
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllTeacherData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT t.*, CONCAT(u.first_name, ' ', u.middle_name, ' ', u.second_name) AS teacher_fullname
+            FROM teachers t
+            JOIN users u ON t.user_id = u.telegram_id;
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($data) {
+                return $data;
             } else {
                 return false;
             }
@@ -191,6 +359,45 @@ class DB
             }else{
                 return false;
             }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectSubjectDataById(int $id): Subject|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+        try {
+            $query = '
+                SELECT * 
+                FROM `subjects` 
+                WHERE `id` = :id
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':id', $id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if($data){
+                return new Subject($data['name'], $data['id']);
+            }else{
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function deleteSubjectData(Subject $subject): bool|Exception
+    {
+        TelegramLog::debug("HERE");
+        try {
+            $stmt = self::$pdo->prepare("DELETE FROM `subjects` WHERE `subjects`.`id` = :subject_id");
+            $stmt->bindParam(':subject_id', $subject->id, PDO::PARAM_INT);
+            return $stmt->execute();
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -237,8 +444,6 @@ class DB
         }
     }
 
-    
-
     public static function insertStudentData(int $user_id, string $group_name): bool
     {
         $stmt = self::$pdo->prepare("INSERT INTO students (user_id, group_id) VALUES (?,?)");
@@ -246,22 +451,13 @@ class DB
         return $stmt->execute([$user_id, $group->id]);
     }
 
-    public static function insertTeacherData(int $user_id, ?string $group_name): bool
+    public static function insertTeacherData(int $user_id, string $group_name): bool
     {
-        $teacher = self::selectTeacherData($user_id);
-        
-        if ($teacher) {
+        $group = self::selectGroupData($group_name);
+        if ($group) {
+            $group_id = $group->id;
+        } else {
             return false;
-        }
-    
-        $group_id = null;
-        if ($group_name !== null) {
-            $group = self::selectGroupData($group_name);
-            if ($group) {
-                $group_id = $group->id;
-            } else {
-                return false;
-            }
         }
     
         $stmt = self::$pdo->prepare("INSERT INTO teachers (user_id, group_id) VALUES (?,?)");
@@ -418,7 +614,7 @@ class DB
             $groups = [];
             if ($data) {
                 foreach ($data as $group) {
-                    array_push($groups, new Group($group['name'], $group['fullname'], $group['link'], $group['id']));
+                    array_push($groups, new Group($group['name'], $group['fullname'], isset($group['link']) ? $group['link'] : "Null", $group['id']));
                 }
             } else {
                 return false;
@@ -503,6 +699,110 @@ class DB
             $stmt->execute();
 
             return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllTeachers(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT teachers.*, 
+            CONCAT(users.first_name, ' ', users.middle_name, ' ', users.second_name) AS teacher_full_name
+            FROM teachers
+            JOIN users ON teachers.user_id = users.telegram_id;            
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectTeacherDataByGroup(int $group_id): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+                SELECT * 
+                FROM `teachers` 
+                WHERE `group_id` = :group_id
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':group_id', $group_id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectTeacherSubjectData(string $subject_name = null, int $teacher_id = null): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        $subject = self::selectSubjectData($subject_name);
+
+        try {
+            $query = '
+                SELECT * 
+                FROM `teacher_subject` 
+            ';
+
+            if($teacher_id){
+                $query .= "WHERE `teacher_id` = :teacher_id";
+            }else if($subject){
+                $query .= "WHERE `subject_id` = :subject_id";
+            }else{
+                return false;
+            }
+
+            $stmt = self::$pdo->prepare($query);
+            
+            if($teacher_id){
+                $stmt->bindParam(':teahcer_id', $teacher_id, PDO::PARAM_INT);
+            }else if($subject){
+                $stmt->bindParam(':subject_id', $subject->id, PDO::PARAM_INT);
+            }
+
+            $stmt->execute();
+
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllTeacherSubjectData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+                SELECT * 
+                FROM `teacher_subject` 
+            ';
+
+            $stmt = self::$pdo->prepare($query);
+
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }

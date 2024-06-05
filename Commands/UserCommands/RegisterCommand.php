@@ -1,9 +1,9 @@
 <?php
-
 namespace App\Commands\UserCommands;
 
 use App\class\User;
 use App\DB;
+use App\utils\KeyboardTelegram;
 use App\utils\Validator;
 use Longman\TelegramBot\Commands\UserCommand;
 use Longman\TelegramBot\Entities\ServerResponse;
@@ -21,9 +21,16 @@ class RegisterCommand extends UserCommand
 
     protected $version = '0.1.8';
 
-    protected $private_only = true;
+    protected $private_only = false;
 
     protected $conversation;
+
+    protected $need_mysql = true;
+
+    public function executeNoDb(): ServerResponse
+    {
+        return $this->removeKeyboard('Нет діалога');
+    }
 
     public function execute(): ServerResponse
     {
@@ -37,10 +44,10 @@ class RegisterCommand extends UserCommand
         if (DB::selectUserData($user_id)) {
             return $this->replyToChat('Ви зареєстровані!');
         }
-
+        
         $data = [
             'chat_id'      => $chat_id,
-            'reply_markup' => Keyboard::remove(['selective' => true]),
+            'reply_markup' => new Keyboard(["/cancel"]),
         ];
 
         if ($chat->isGroupChat() || $chat->isSuperGroup()) {
@@ -59,7 +66,7 @@ class RegisterCommand extends UserCommand
         switch ($state) {
             case 0:
                 TelegramLog::debug('Start Register Name');
-                if ($text === '') {
+                if ($text === '' || $text === "Регістрація") {
                     $notes['state'] = 0;
                     $this->conversation->update();
 
@@ -169,7 +176,8 @@ class RegisterCommand extends UserCommand
                     $notes['state'] = 5;
                     $this->conversation->update();
 
-                    $data['text'] = 'Напишіть вашу електронну адресу, якщо не бажаєте вказувати напішіть Next: ';
+                    $data['text'] = 'Напишіть вашу електронну адресу: ';
+                    $data['reply_markup'] = (new Keyboard(['/cancel', 'Next']));
 
                     $result = request::sendmessage($data);
                     break;
@@ -243,13 +251,17 @@ class RegisterCommand extends UserCommand
                     break;
                 }
 
-                $notes['group'] = ($text === 'Next') ? null : $text;
+                $notes['group'] = ($text === 'Next') ? "Null" : $text;
                 $text = '';
                 TelegramLog::debug('Success Register Group:', $notes);
             case 8:
                 TelegramLog::debug('Finish Register');
 
                 $this->conversation->update();
+
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
+                
                 $out_text = '/register Результат:' . PHP_EOL;
                 unset($notes['state']);
 
@@ -277,14 +289,21 @@ class RegisterCommand extends UserCommand
                 }
 
                 $data['text'] = $out_text . PHP_EOL . "Статус ✅";
-
+                
                 $this->conversation->stop();
 
-                $result = Request::sendMessage($data);
+                $result = $this->removeKeyboard($data['text']);
 
                 TelegramLog::debug("Finish registration", $notes);
                 break;
         }
         return $result;
+    }
+
+    private function removeKeyboard(string $text): ServerResponse
+    {
+        return $this->replyToChat($text, [
+            'reply_markup' => Keyboard::remove(['selective' => true]),
+        ]);
     }
 }

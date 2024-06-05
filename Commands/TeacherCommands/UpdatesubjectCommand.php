@@ -1,7 +1,6 @@
 <?php
 namespace Longman\TelegramBot\Commands\TeacherCommands;
 
-use App\class\Group;
 use App\DB;
 use App\utils\KeyboardTelegram;
 use Longman\TelegramBot\Commands\TeacherCommand;
@@ -11,13 +10,13 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\TelegramLog;
 
-class CreategroupCommand extends TeacherCommand
+class UpdatesubjectCommand extends TeacherCommand
 {
-    protected $name = 'createGroup';
+    protected $name = 'updatesubject';
 
-    protected $description = 'Створити группу';
+    protected $description = 'Оновити назву предмета';
 
-    protected $usage = '/createGroup Name';
+    protected $usage = '/updatesubject';
 
     protected $version = '1.0.0';
 
@@ -60,72 +59,93 @@ class CreategroupCommand extends TeacherCommand
         $state = $notes['state'] ?? 0;
         $result = Request::emptyResponse();
 
-        TelegramLog::debug('Start create Group');
-        
         switch ($state) {
             case 0:
-                TelegramLog::debug('Start Name Group');
-                if ($text === '' || $text === 'Створити групу') {
+                $subjects = [];
+                $subjectId = [];
+                foreach (DB::selectAllSubjectsData() as $subject) {
+                    $subjects[] = $subject->name;
+                    $subjectsId[$subject->name] = $subject->id;
+                }
+                if ($text === '' || (!in_array($text, $subjects, true))) {
                     $notes['state'] = 0;
                     $this->conversation->update();
 
-                    $data['text'] = 'Напишіть скорочену назву групи:';
+                    $data['reply_markup'] = (new Keyboard($subjects))
+                        ->setResizeKeyboard(true)
+                        ->setOneTimeKeyboard(true)
+                        ->setSelective(true);
 
-                    $result = Request::sendMessage($data);
+                    $data['text'] = 'Оберіть предмет для оновлення даних:';
+
+                    if ($text === '' || $text === 'Оновити предмет') {
+                        $result = Request::sendMessage($data);
+                    } else {
+                        $data['text'] = 'Такого предмета не загестровано';
+                        $result = Request::sendMessage($data);
+                    }
                     break;
                 }
 
-                $notes['group_name'] = $text;
+                $notes['subject'] = $text;
+                $notes['subject_id'] = $subjectsId[$notes['subject']];
                 $text = '';
-                TelegramLog::debug('Success group Name:', $notes);
             case 1:
-                TelegramLog::debug('Start Full name Group');
-                if ($text === '') {
+                $subjectsColumn = [];
+                foreach (DB::selectColumnSubjectData() as $column) {
+                    if($column['COLUMN_NAME'] === 'id'){
+                        continue;
+                    }
+                    $subjectsColumn[] = $column['COLUMN_NAME'];
+                }
+                
+                if ($text === '' || (!in_array($text, $subjectsColumn, true))) {
                     $notes['state'] = 1;
                     $this->conversation->update();
 
-                    $data['text'] = 'Напишіть повну назву групи:';
+                    $data['reply_markup'] = (new Keyboard($subjectsColumn))
+                        ->setResizeKeyboard(true)
+                        ->setOneTimeKeyboard(true)
+                        ->setSelective(true);
+
+                    $data['text'] = 'Поле, яке хочете змінити:';
+
+                    if ($text === '') {
+                        $result = Request::sendMessage($data);
+                    }
+                    break;
+                }
+
+                $notes['column'] = $text;
+                $text = '';
+            case 2:
+                if ($text === '') {
+                    $notes['state'] = 2;
+                    $this->conversation->update();
+
+                    $data['text'] = 'Введіть нові данні для предмета - ' . $notes['subject'] . " поля " . $notes['column'];
 
                     $result = Request::sendMessage($data);
                     break;
                 }
 
-                $notes['group_fullname'] = $text;
+                $notes['new_data'] = $text;
                 $text = '';
-                TelegramLog::debug('Success group fullName:', $notes);
-            case 2:
-                    TelegramLog::debug('Start link Group');
-                    if ($text === '') {
-                        $notes['state'] = 2;
-                        $this->conversation->update();
-    
-                        $data['text'] = 'Напишіть посилання на групу в телеграмі:';
-    
-                        $result = Request::sendMessage($data);
-                        break;
-                    }
-    
-                    $notes['group_link'] = $text;
-                    $text = '';
-                    TelegramLog::debug('Success group link:', $notes);
             case 3:
-                TelegramLog::debug('Finish create Group');
-    
                 $this->conversation->update();
                 $keyboard = KeyboardTelegram::getKeyboard($user_id);
                 $data['reply_markup'] = $keyboard;
 
                 $out_text = 'Результат:' . PHP_EOL;
                 unset($notes['state']);
-    
+
                 foreach ($notes as $k => $v) {
                     $value = ($v !== null) ? $v : 'Nothing';
                     $out_text .= PHP_EOL . ucfirst($k) . ': ' . $value;
                 }
 
                 try {
-                    DB::insertGroupData(new Group($notes['group_name'], $notes['group_fullname'], $notes['group_link']));
-                    DB::insertTeacherData($user_id, $notes['group_name']);;
+                    DB::updateSubjectData($notes['column'], $notes['new_data'], $notes['subject']);
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);

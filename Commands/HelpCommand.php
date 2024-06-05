@@ -1,22 +1,5 @@
 <?php
-
-/**
- * This file is part of the PHP Telegram Bot example-bot package.
- * https://github.com/php-telegram-bot/example-bot/
- *
- * (c) PHP Telegram Bot Team
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
-/**
- * User "/help" command
- *
- * Command that lists all available commands and displays them in User and Admin sections.
- */
-
-namespace Longman\TelegramBot\Commands\UserCommands;
+namespace App\Commands\UserCommands;
 
 use App\DB;
 use Longman\TelegramBot\Commands\Command;
@@ -34,12 +17,12 @@ class HelpCommand extends UserCommand
     /**
      * @var string
      */
-    protected $description = 'Show bot commands help';
+    protected $description = 'Показати всі команди бота';
 
     /**
      * @var string
      */
-    protected $usage = '/help or /help <command>';
+    protected $usage = '/help або /help <command>';
 
     /**
      * @var string
@@ -57,6 +40,10 @@ class HelpCommand extends UserCommand
         $message     = $this->getMessage();
         $command_str = trim($message->getText(true));
 
+        if($command_str === "Допомога") {
+            return $this->replyToChat("Help You");
+        } 
+        
         // Admin commands shouldn't be shown in group chats
         $safe_to_show = $message->getChat()->isPrivateChat();
 

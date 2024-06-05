@@ -8,15 +8,14 @@ use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\Keyboard;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
-use Longman\TelegramBot\TelegramLog;
 
-class TakesubjectCommand extends TeacherCommand
+class InfogroupCommand extends TeacherCommand
 {
-    protected $name = 'takeSubject';
+    protected $name = 'infogroup';
 
-    protected $description = 'Взяти на собі предмет';
+    protected $description = 'Отримання довідки про групу';
 
-    protected $usage = '/takeSubject';
+    protected $usage = '/infogroup';
 
     protected $version = '1.0.0';
 
@@ -37,6 +36,8 @@ class TakesubjectCommand extends TeacherCommand
         $text    = trim($message->getText(true));
         $chat_id = $chat->getId();
         $user_id = $user->getId();
+        
+        $teacher_user = DB::selectUserData($user_id);
 
         if (DB::getUserRole($user_id) !== "teacher") {
             return Request::sendMessage(['chat_id' => $chat_id, 'text' => 'Ця команда доступна лише для вчителів.']);
@@ -59,69 +60,68 @@ class TakesubjectCommand extends TeacherCommand
         $state = $notes['state'] ?? 0;
         $result = Request::emptyResponse();
 
-        TelegramLog::debug('Start add subject with Teacher');
         switch ($state) {
             case 0:
-                TelegramLog::debug('Start subject teacher');
-                $subjects = [];
-                foreach (DB::selectAllSubjectsData() as $subject) {
-                    $subjects[] = $subject->name;
+                $groups = [];
+                foreach (DB::selectAllGroupsData() as $group) {
+                    if($group->name === "Null"){
+                        continue;
+                    }
+                    $groups[] = $group->name;
                 }
-                if ($text === '' || (!in_array($text, $subjects, true))) {
+                if ($text === '' || (!in_array($text, $groups, true))) {
                     $notes['state'] = 0;
                     $this->conversation->update();
 
-                    $data['reply_markup'] = (new Keyboard($subjects))
+                    $data['reply_markup'] = (new Keyboard($groups))
                         ->setResizeKeyboard(true)
                         ->setOneTimeKeyboard(true)
                         ->setSelective(true);
 
-                    $data['text'] = 'Виберіть предмет:';
+                    $data['text'] = 'Оберіть групу для отримання інформації:';
 
-                    if ($text === '') {
+                    if ($text === '' || $text === 'Показати довідку по групі') {
                         $result = Request::sendMessage($data);
                     } else {
-                        $data['text'] = 'Такого предмета не зареєстровано на базі. Будь ласка, виберіть існуючий предмет';
+                        $data['text'] = 'Такої групи не загестровано';
                         $result = Request::sendMessage($data);
                     }
                     break;
                 }
 
-                $notes['subject'] = $text;
+                $notes['group'] = $text;
                 $text = '';
-                TelegramLog::debug('Success teacher Subject:', $notes);
             case 1:
-                TelegramLog::debug('Finish add Subject');
-
                 $this->conversation->update();
-                $out_text = '/takeSubject result:' . PHP_EOL;
-                unset($notes['state']);
-
-                foreach ($notes as $k => $v) {
-                    $value = ($v !== null) ? $v : 'Nothing';
-                    $out_text .= PHP_EOL . ucfirst($k) . ': ' . $value;
-                }
-
-                try {
-                    DB::insertTeacherSubjectData($user_id, $notes['subject']);
-                } catch (\PDOException $e) {
-                    $data['text'] = 'Статус ❌';
-                    $result = Request::sendMessage($data);
-                    TelegramLog::error("Error insert - " . $e);
-                    break;
-                }
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
                 $keyboard = KeyboardTelegram::getKeyboard($user_id);
                 $data['reply_markup'] = $keyboard;
+
+                $group = DB::selectGroupData($notes['group']);
+                $teacher_data = DB::selectTeacherDataByGroup($group->id);
+
+                $teacher_user = DB::selectUserData($teacher_data['user_id']);
+                $teacher_fullname = $teacher_user->first_name . " " . $teacher_user->second_name . " " . $teacher_user->middle_name;
+                
+                $text = sprintf(
+                    "Назва групи: %s\nПовна назва групи: %s\nПосилання на групу телеграм: %s\nКласний керівник: %s",
+                    $group->name,
+                    $group->fullname,
+                    $group->link ? "Немає" : $group->link,
+                    $teacher_fullname === "" ? "Немає" : $teacher_fullname
+                );
+                
+                $out_text = '/infogroup Результат:' . PHP_EOL . $text;
+
+                unset($notes['state']);
+
+                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+
                 $this->conversation->stop();
 
                 $result = Request::sendMessage($data);
 
-                TelegramLog::debug("Finish registration", $notes);
                 break;
         }
         return $result;
-        }
     }
-    
+}

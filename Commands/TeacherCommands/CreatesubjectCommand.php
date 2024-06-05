@@ -1,9 +1,9 @@
 <?php
-
 namespace Longman\TelegramBot\Commands\TeacherCommands;
 
 use App\class\Subject;
 use App\DB;
+use App\utils\KeyboardTelegram;
 use Longman\TelegramBot\Commands\TeacherCommand;
 use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\Keyboard;
@@ -13,11 +13,11 @@ use Longman\TelegramBot\TelegramLog;
 
 class CreatesubjectCommand extends TeacherCommand
 {
-    protected $name = 'createSubject';
+    protected $name = 'createsubject';
 
     protected $description = 'Створити предмет';
 
-    protected $usage = '/createSubject';
+    protected $usage = '/createsubject';
 
     protected $version = '1.0.0';
 
@@ -65,7 +65,7 @@ class CreatesubjectCommand extends TeacherCommand
         switch ($state) {
             case 0:
                 TelegramLog::debug('Start subject Name');
-                if ($text === '') {
+                if ($text === '' || $text === "Створити предмет") {
                     $notes['state'] = 0;
                     $this->conversation->update();
 
@@ -100,6 +100,8 @@ class CreatesubjectCommand extends TeacherCommand
                 }
 
                 $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
 
                 $this->conversation->stop();
 

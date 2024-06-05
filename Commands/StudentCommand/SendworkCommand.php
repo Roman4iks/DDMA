@@ -1,9 +1,9 @@
 <?php
-
-namespace Longman\TelegramBot\Commands\TeacherCommands;
+namespace Longman\TelegramBot\Commands\StudentCommands;
 
 use App\class\CompletedWork;
 use App\DB;
+use App\utils\KeyboardTelegram;
 use DateTime;
 use Longman\TelegramBot\Commands\StudentCommand;
 use Longman\TelegramBot\Conversation;
@@ -51,7 +51,7 @@ class SendworkCommand extends StudentCommand
 
         $data = [
             'chat_id'      => $chat_id,
-            'reply_markup' => Keyboard::remove(['selective' => true]),
+            'reply_markup' => new Keyboard(["/cancel"]),
         ];
 
         if ($chat->isGroupChat() || $chat->isSuperGroup()) {
@@ -75,6 +75,8 @@ class SendworkCommand extends StudentCommand
                 foreach (DB::selectAllSubjectsData() as $subject) {
                     $subjects[] = $subject->name;
                 }
+
+                $subjects[] = "/cancel";
                 if ($text === '' || (!in_array($text, $subjects, true))) {
                     $notes['state'] = 0;
                     $this->conversation->update();
@@ -205,6 +207,7 @@ class SendworkCommand extends StudentCommand
                 $this->conversation->stop();
 
                 $data['text'] = $out_text . PHP_EOL;
+                $data['reply_markup'] = KeyboardTelegram::getKeyboard($user_id);
 
                 $result = Request::sendMessage($data);
 

@@ -1,5 +1,4 @@
 <?php 
-
 namespace Longman\TelegramBot\Commands\StudentCommands;
 
 use App\DB;

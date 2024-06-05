@@ -1,10 +1,9 @@
 <?php
-
 namespace Longman\TelegramBot\Commands\TeacherCommands;
 
-use App\class\Group;
 use App\class\Work;
 use App\DB;
+use App\utils\KeyboardTelegram;
 use App\utils\Validator;
 use Longman\TelegramBot\Commands\TeacherCommand;
 use Longman\TelegramBot\Conversation;
@@ -209,6 +208,8 @@ class CreateworkCommand extends TeacherCommand
                 }
 
                 $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
 
                 $this->conversation->stop();
 

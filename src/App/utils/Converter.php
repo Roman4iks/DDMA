@@ -13,7 +13,7 @@ class Converter
         foreach ($array as $key => $value) {
             if (is_array($value)) {
                 $out_text .= $indent . $key . PHP_EOL;
-                $out_text .= self::MultiArrayToString($value, $separator, $indent . '  '); // Рекурсивный вызов для вложенных массивов
+                $out_text .= self::MultiArrayToString($value, $separator, $indent . '  ');
             } else {
                 $out_text .= $indent . $key . $separator . $value . PHP_EOL;
             }

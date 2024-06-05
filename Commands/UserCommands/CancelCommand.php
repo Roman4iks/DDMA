@@ -1,10 +1,11 @@
 <?php
 namespace Longman\TelegramBot\Commands\UserCommands;
 
+use App\utils\KeyboardTelegram;
 use Longman\TelegramBot\Commands\UserCommand;
 use Longman\TelegramBot\Conversation;
-use Longman\TelegramBot\Entities\Keyboard;
 use Longman\TelegramBot\Entities\ServerResponse;
+use Longman\TelegramBot\Request;
 
 class CancelCommand extends UserCommand
 {
@@ -26,6 +27,11 @@ class CancelCommand extends UserCommand
     public function execute(): ServerResponse
     {
         $text = 'Нема активних діалогів!';
+        $message = $this->getMessage();
+        $text    = trim($message->getText());
+        $chat_id = $message->getChat()->getId();
+        $user    = $message->getFrom();
+        $user_id = $user->getId();
 
         $conversation = new Conversation(
             $this->getMessage()->getFrom()->getId(),
@@ -35,14 +41,18 @@ class CancelCommand extends UserCommand
         if ($conversation_command = $conversation->getCommand()) {
             $conversation->cancel();
             $text = 'Діалог "' . $conversation_command . '" завершено!';
+        }else {
+            $text = 'Діалогу не знайдено';
         }
 
-        return $this->removeKeyboard($text);
-    }
-    private function removeKeyboard(string $text): ServerResponse
-    {
-        return $this->replyToChat($text, [
-            'reply_markup' => Keyboard::remove(['selective' => true]),
-        ]);
+        $keyboard = KeyboardTelegram::getKeyboard($user_id);
+
+        $data = [
+            'chat_id' => $chat_id,
+            'text'    => $text,
+            'reply_markup' => $keyboard,
+        ];
+
+        return Request::sendMessage($data);
     }
 }
