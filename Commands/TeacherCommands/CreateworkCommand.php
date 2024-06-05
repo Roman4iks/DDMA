@@ -66,7 +66,7 @@ class CreateworkCommand extends TeacherCommand
         switch ($state) {
             case 0:
                 TelegramLog::debug('Start Task Work');
-                if ($text === '') {
+                if ($text === '' || $text === "Створити завдання") {
                     $notes['state'] = 0;
                     $this->conversation->update();
 
@@ -115,6 +115,9 @@ class CreateworkCommand extends TeacherCommand
 
                 $groups = [];
                 foreach (DB::selectAllGroupsData() as $group) {
+                    if($group->name === "Null"){
+                        continue;
+                    }
                     $groups[] = $group->name;
                 }
 

@@ -61,8 +61,8 @@ class GenericmessageCommand extends SystemCommand
                     $response_text = 'Команди для керування предметами колледжу:';
                     break;
                 case 'Команди для завдань':
-                    $keyboard_buttons = ['Створити предмет', 'Оновити предмет', 'Видалити предмет', 'Викладати предмет', 'Назад'];
-                    $response_text = 'Команди для керування предметами колледжу:';
+                    $keyboard_buttons = ['Створити завдання', 'Оновити завдання', 'Видалити завдання', 'Переглянути надіслані завдання', 'Отримати інформацію про завдання', 'Назад'];
+                    $response_text = 'Команди для керування завданнями колледжу:';
                     break;
                 default:
                     $commands = [
@@ -89,6 +89,10 @@ class GenericmessageCommand extends SystemCommand
                         'Видалити предмет' => 'Longman\TelegramBot\Commands\TeacherCommands\DeletesubjectCommand',
                         'Оновити предмет' => 'Longman\TelegramBot\Commands\TeacherCommands\UpdatesubjectCommand',
                         'Викладати предмет' => 'Longman\TelegramBot\Commands\TeacherCommands\TakesubjectCommand',
+                        'Створити завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\CreateworkCommand',
+                        'Отримати інформацію про завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\InfoworkCommand',
+                        'Видалити завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\DeleteworkCommand',
+                        'Оновити завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\UpdateworkCommand',
                     ];
                     if (array_key_exists($text, $commands)) {
                         $class_name = $commands[$text];

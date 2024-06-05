@@ -148,6 +148,20 @@ class DB
         }
     }
 
+    public static function deleteWorkData(Work $work): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("
+            DELETE FROM works WHERE id = :work_id;");
+            $stmt->bindParam(':work_id', $work->id, PDO::PARAM_STR);
+            $result = $stmt->execute();
+
+            return $result;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
     public static function selectGroupData(string $name): Group|false|Exception
     {
         if (!self::isDbConnected()) {
@@ -247,11 +261,46 @@ class DB
         }
     }
 
+    public static function selectColumnWorkData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'collage' AND TABLE_NAME = 'works';
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $data;
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
     public static function updateGroupData(string $column, string $new_data, string $group_name): bool|Exception
     {
         try {
             $stmt = self::$pdo->prepare("UPDATE `groups` SET `$column` = :new_data WHERE `name` = :group_name;");
             $stmt->bindParam(':group_name', $group_name, PDO::PARAM_STR);
+            $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function updateWorkData(string $column, string $new_data, Work $work): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("UPDATE `works` SET `$column` = :new_data WHERE `id` = :work_id;");
+            $stmt->bindParam(':work_id', $work->id, PDO::PARAM_STR);
             $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
             
             return $stmt->execute();
