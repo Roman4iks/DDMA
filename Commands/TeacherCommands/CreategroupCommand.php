@@ -124,8 +124,14 @@ class CreategroupCommand extends TeacherCommand
                 }
 
                 try {
-                    DB::insertGroupData(new Group($notes['group_name'], $notes['group_fullname'], $notes['group_link']));
-                    DB::insertTeacherData($user_id, $notes['group_name']);;
+                    $result_group = DB::insertGroupData(new Group($notes['group_name'], $notes['group_fullname'], $notes['group_link']));
+                    
+                    if($result_group){
+                        DB::insertTeacherData($user_id, $notes['group_name']);;
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                        $result = Request::sendMessage($data);
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);

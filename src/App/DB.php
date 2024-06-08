@@ -180,7 +180,7 @@ class DB
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($data) {
-                $link = !$data['link'] ? "null" : $data['link'];
+                $link = !$data['group_link'] ? "null" : $data['group_link'];
                 return new Group($data['name'], $data['fullname'], $link, $data['id']);
             } else {
                 return false;
@@ -207,11 +207,159 @@ class DB
             $stmt->execute();
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
             if ($data) {
-                return new Group($data['name'], $data['fullname'], !$data['link'] ? "null" : $data['link'], $data['id']);
+                return new Group($data['name'], $data['fullname'], !$data['group_link'] ? null : $data['group_link'], $data['id']);
             } else {
                 return false;
             }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectPairsDataByGroupId(int $group_id): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+SELECT pairs.*, 
+       CONCAT(users.first_name, ' ', users.middle_name, ' ', users.second_name) AS teacher_fullname,
+       subjects.name AS subject_name
+FROM pairs
+JOIN users ON pairs.teacher_id = users.telegram_id
+JOIN subjects ON pairs.subject_id = subjects.id
+WHERE pairs.group_id = :group_id
+AND pairs.top_week = IF(WEEK(CURRENT_DATE()) % 2 = 0, 1, 0);
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':group_id', $group_id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($data) {
+                return $data;
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function deletePairDataById(int $pair_id): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("DELETE FROM `pairs` WHERE id = :pair_id");
+            $stmt->bindParam(':pair_id', $pair_id, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function insertPairData(int $subject_id, int $teacher_id, int $group_id, $start, $end, $week, $top_week): bool|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $sql = "INSERT INTO `pairs` (`subject_id`, `teacher_id`, `group_id`, `start`, `end`, `week`, `top_week`) 
+            VALUES (:subject_id, :teacher_id, :group_id, :start, :end, :week, :top_week)";
+
+            // Подготовка запроса
+            $stmt = self::$pdo->prepare($sql);
+
+            // Параметры запроса
+
+            // Привязка параметров к меткам
+            $stmt->bindParam(':subject_id', $subject_id, PDO::PARAM_INT);
+            $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_STR);
+            $stmt->bindParam(':group_id', $group_id, PDO::PARAM_INT);
+            $stmt->bindParam(':start', $start, PDO::PARAM_STR);
+            $stmt->bindParam(':end', $end, PDO::PARAM_STR);
+            $stmt->bindParam(':week', $week, PDO::PARAM_INT);
+            $stmt->bindParam(':top_week', $top_week, PDO::PARAM_INT);
+
+            // Выполнение запроса
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function updatePairData(string $column, string $new_data, int $pair_id, int $teacher_id): bool|Exception
+    {
+        try {
+            $stmt = self::$pdo->prepare("UPDATE `pairs` SET `$column` = :new_data WHERE `id` = :pair_id AND `teacher_id` = :teacher_id;");
+            $stmt->bindParam(':pair_id', $pair_id, PDO::PARAM_STR);
+            $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_STR);
+            $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
+
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectAllPairsDataByGroup(int $group_id, int $subject_id = null): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+SELECT pairs.*, 
+       subjects.name AS subject_name,
+       CONCAT(users.first_name, ' ', users.middle_name, ' ', users.second_name) AS teacher_fullname
+FROM pairs
+JOIN users ON pairs.teacher_id = users.telegram_id
+JOIN subjects ON pairs.subject_id = subjects.id
+WHERE pairs.group_id = :group_id
+            ";
+            if($subject_id){
+                $query .= 'AND pairs.subject_id = :subject_id;';
+            }
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':group_id', $group_id, PDO::PARAM_STR);
+            if($subject_id){
+                $stmt->bindParam(':subject_id', $subject_id, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($data) {
+                return $data;
+            } else {
+                return false;
+            }
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectColumnPairData(): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'collage' AND TABLE_NAME = 'pairs';
+            ";
+            $stmt = self::$pdo->prepare($query);
+            $stmt->execute();
+
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $data;
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
@@ -289,7 +437,7 @@ class DB
             $stmt = self::$pdo->prepare("UPDATE `groups` SET `$column` = :new_data WHERE `name` = :group_name;");
             $stmt->bindParam(':group_name', $group_name, PDO::PARAM_STR);
             $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
-            
+
             return $stmt->execute();
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
@@ -302,21 +450,21 @@ class DB
             $stmt = self::$pdo->prepare("UPDATE `works` SET `$column` = :new_data WHERE `id` = :work_id;");
             $stmt->bindParam(':work_id', $work->id, PDO::PARAM_STR);
             $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
-            
+
             return $stmt->execute();
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
         }
     }
 
-    
+
     public static function updateSubjectData(string $column, string $new_data, string $subject_name): bool|Exception
     {
         try {
             $stmt = self::$pdo->prepare("UPDATE `subjects` SET `$column` = :new_data WHERE `name` = :subject_name;");
             $stmt->bindParam(':subject_name', $subject_name, PDO::PARAM_STR);
             $stmt->bindParam(':new_data', $new_data, PDO::PARAM_STR);
-            
+
             return $stmt->execute();
         } catch (PDOException $e) {
             return new Exception($e->getMessage());
@@ -402,10 +550,10 @@ class DB
             $stmt->execute();
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if($data){
+
+            if ($data) {
                 return new Subject($data['name'], $data['id']);
-            }else{
+            } else {
                 return false;
             }
         } catch (PDOException $e) {
@@ -429,10 +577,10 @@ class DB
             $stmt->execute();
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if($data){
+
+            if ($data) {
                 return new Subject($data['name'], $data['id']);
-            }else{
+            } else {
                 return false;
             }
         } catch (PDOException $e) {
@@ -475,12 +623,12 @@ class DB
             return false;
         }
 
-        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade) VALUES (?,?,?,?,?)");
+        $stmt = self::$pdo->prepare("INSERT INTO completed_works (teacher_id, student_id, work_id, finish, grade, file_id) VALUES (?,?,?,?,?,?)");
 
-        return $stmt->execute([$completedWork->teacherId, $completedWork->studentId, $completedWork->workId, $completedWork->finish, $completedWork->grade]);
+        return $stmt->execute([$completedWork->teacherId, $completedWork->studentId, $completedWork->workId, $completedWork->finish, $completedWork->grade, $completedWork->file_id]);
     }
 
-    
+
 
     public static function insertTeacherSubjectData(int $teacher_id, string $subject_name): bool
     {
@@ -508,40 +656,10 @@ class DB
         } else {
             return false;
         }
-    
+
         $stmt = self::$pdo->prepare("INSERT INTO teachers (user_id, group_id) VALUES (?,?)");
-    
+
         return $stmt->execute([$user_id, $group_id]);
-    }
-
-    // TODO PAIR
-    public static function insertPairData(string $subject_name, int $teacher_id, string $group_name, string $start, string $end, int $week, int $top_week = 0): bool|Exception
-    {
-        $group = self::selectGroupData($group_name);
-
-        if (!$group) {
-            return new Exception("Group data is not available");
-        }
-
-        $teacher = self::selectTeacherData($teacher_id);
-
-        if (!$teacher) {
-            return new Exception("Teacher data is not available");
-        }
-
-        $subject = self::selectSubjectData($subject_name);
-        if (!$subject) {
-            return new Exception("Subject data is not available");
-        }
-
-        if (strtotime($start) > strtotime($end)) {
-            return new Exception("Data time is not variable");
-        }
-
-        // isTimeAvailable Проверка на пересечение с другими парами
-
-        $stmt = self::$pdo->prepare("INSERT INTO pairs (subject_id, teacher_id, group_id, start, end, week, top_week) VALUES (?,?,?,?,?,?,?)");
-        return $stmt->execute([$subject->id, $teacher['user_id'], $group->id, $start, $end, $week, $top_week]);
     }
 
     public static function selectWorkData(string $task): Work|false|Exception
@@ -566,9 +684,9 @@ class DB
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if($data){
+            if ($data) {
                 return new Work($data['task'], $data['subject_name'], $data['teacher_id'], $data['group_name'], $data['start'], $data['end'], $data['id']);
-            }else{
+            } else {
                 return false;
             }
         } catch (PDOException $e) {
@@ -598,9 +716,9 @@ class DB
 
             $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if($data){
+            if ($data) {
                 return new Work($data['task'], $data['subject_name'], $data['teacher_id'], $data['group_name'], $data['start'], $data['end'], $data['id']);
-            }else{
+            } else {
                 return false;
             }
         } catch (PDOException $e) {
@@ -811,19 +929,19 @@ class DB
                 FROM `teacher_subject` 
             ';
 
-            if($teacher_id){
+            if ($teacher_id) {
                 $query .= "WHERE `teacher_id` = :teacher_id";
-            }else if($subject){
+            } else if ($subject) {
                 $query .= "WHERE `subject_id` = :subject_id";
-            }else{
+            } else {
                 return false;
             }
 
             $stmt = self::$pdo->prepare($query);
-            
-            if($teacher_id){
+
+            if ($teacher_id) {
                 $stmt->bindParam(':teahcer_id', $teacher_id, PDO::PARAM_INT);
-            }else if($subject){
+            } else if ($subject) {
                 $stmt->bindParam(':subject_id', $subject->id, PDO::PARAM_INT);
             }
 
@@ -878,6 +996,51 @@ class DB
             $stmt = self::$pdo->prepare($query);
             $stmt->bindParam(':work_id', $work->id, PDO::PARAM_STR);
             $stmt->bindParam(':student_id', $student_id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function updateCompletedWorkData(int $work_id, int $student_id, int $grade, int $teacher_id): bool|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = 'UPDATE completed_works SET grade = :grade, teacher_id = :teacher_id WHERE student_id = :student_id AND work_id = :work_id;';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':work_id', $work_id, PDO::PARAM_STR);
+            $stmt->bindParam(':student_id', $student_id, PDO::PARAM_STR);
+            $stmt->bindParam(':grade', $grade, PDO::PARAM_STR);
+            $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_STR);
+
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
+        }
+    }
+
+    public static function selectCompletedWorksDataWithoutGrade(int $teacher_id): array|false|Exception
+    {
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = '
+            SELECT cw.*, w.task
+            FROM completed_works AS cw
+            JOIN works AS w ON cw.work_id = w.id
+            WHERE cw.grade IS NULL
+              AND cw.teacher_id IS NULL
+              AND w.teacher_id = :teacher_id;
+            ';
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_STR);
             $stmt->execute();
 
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1011,12 +1174,12 @@ class DB
 
     public static function getTotalUncompletedWorksFromSubjectWithStudent(int $user_id): array|bool|Exception
     {
-            if (!self::isDbConnected()) {
-                return new Exception("DB connection is not connected");
-            }
-    
-            try {
-                $query = "
+        if (!self::isDbConnected()) {
+            return new Exception("DB connection is not connected");
+        }
+
+        try {
+            $query = "
                 SELECT 
                 s.name AS subject, 
                 COUNT(*) AS total_works
@@ -1033,16 +1196,16 @@ class DB
             GROUP BY 
                 w.subject_id;
                     ";
-    
-                $stmt = self::$pdo->prepare($query);
-                $stmt->bindParam(':student_id', $user_id, PDO::PARAM_STR);
-                $stmt->execute();
-    
-                return $stmt->fetchAll(PDO::FETCH_ASSOC);
-            } catch (PDOException $e) {
-                return new Exception($e->getMessage());
-            }
+
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindParam(':student_id', $user_id, PDO::PARAM_STR);
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return new Exception($e->getMessage());
         }
+    }
 
     public static function getTotalWorksFromSubjectWithGroup(string $group_name): array|bool|Exception
     {
@@ -1260,22 +1423,21 @@ class DB
             return new Exception($e->getMessage());
         }
     }
-    
+
     public static function getUserRole($telegramId)
     {
         $stmt = self::$pdo->prepare("SELECT 'student' AS role FROM students WHERE user_id = :telegram_id");
         $stmt->bindParam(':telegram_id', $telegramId);
         $stmt->execute();
-        
+
         if ($stmt->fetchColumn()) {
             return 'student';
         }
 
-        // Проверка, если пользователь преподаватель
         $stmt = self::$pdo->prepare("SELECT 'teacher' AS role FROM teachers WHERE user_id = :telegram_id");
         $stmt->bindParam(':telegram_id', $telegramId);
         $stmt->execute();
-        
+
         if ($stmt->fetchColumn()) {
             return 'teacher';
         }

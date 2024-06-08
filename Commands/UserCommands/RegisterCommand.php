@@ -224,6 +224,9 @@ class RegisterCommand extends UserCommand
 
                 $groups = [];
                 foreach (DB::selectAllGroupsData($user_id) as $group) {
+                    if ($group->name === "Null") {
+                        continue;
+                    }
                     $groups[] = $group->name;
                 }
 
@@ -258,9 +261,6 @@ class RegisterCommand extends UserCommand
                 TelegramLog::debug('Finish Register');
 
                 $this->conversation->update();
-
-                $keyboard = KeyboardTelegram::getKeyboard($user_id);
-                $data['reply_markup'] = $keyboard;
                 
                 $out_text = '/register Результат:' . PHP_EOL;
                 unset($notes['state']);
@@ -271,14 +271,25 @@ class RegisterCommand extends UserCommand
                 }
 
                 try {
-                    DB::insertUserData(new User($user_id, $user->getUsername(), $notes['first_name'], $notes['middle_name'], $notes['second_name'], $notes['birthday'], $notes['phone'], $notes['email']));
+                    DB::insertUserData(new User($user_id, !$user->getUsername() ? "Nothing" : $user->getUsername(), $notes['first_name'], $notes['middle_name'], $notes['second_name'], $notes['birthday'], $notes['phone'], $notes['email']));
                     TelegramLog::debug("Success insert user data");
 
                     if ($notes['role'] == "Студент") {
-                        DB::insertStudentData($user_id, $notes['group']);
+                        $result = DB::insertStudentData($user_id, $notes['group']);
+                        if($result){
+                            $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                        }else{
+                            $data['text'] = 'Статус ❌';
+                        }
+                        
                         TelegramLog::debug("Success insert student");
                     } elseif ($notes['role'] == "Викладач") {
-                        DB::insertTeacherData($user_id, $notes['group']);
+                        $result = DB::insertTeacherData($user_id, $notes['group']);
+                        if($result){
+                            $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                        }else{
+                            $data['text'] = 'Статус ❌';
+                        }
                         TelegramLog::debug("Success insert teacher");
                     }
                 } catch (\PDOException $e) {
@@ -288,11 +299,12 @@ class RegisterCommand extends UserCommand
                     break;
                 }
 
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
                 
                 $this->conversation->stop();
 
-                $result = $this->removeKeyboard($data['text']);
+                $result = Request::sendMessage($data);
 
                 TelegramLog::debug("Finish registration", $notes);
                 break;

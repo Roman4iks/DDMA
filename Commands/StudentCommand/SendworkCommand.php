@@ -72,8 +72,17 @@ class SendworkCommand extends StudentCommand
             case 0:
                 TelegramLog::debug('Start Register subject');
                 $subjects = [];
-                foreach (DB::selectAllSubjectsData() as $subject) {
+                $subjects_data = DB::selectAllSubjectsData();
+                if($subjects_data){
+                foreach ($subjects_data as $subject) {
                     $subjects[] = $subject->name;
+                }
+                }else{
+                    $data['text'] = 'Предметів не зарегестровано в базі:';
+                    $data['reply_markup'] = KeyboardTelegram::getKeyboard($user_id);
+                    $result = Request::sendMessage($data);
+                    $this->conversation->stop();
+                    return $result;
                 }
 
                 $subjects[] = "/cancel";
@@ -88,7 +97,7 @@ class SendworkCommand extends StudentCommand
 
                     $data['text'] = 'Выберите предмет:';
 
-                    if ($text === '') {
+                    if ($text === '' || $text === 'Відправити завдання') {
                         $result = Request::sendMessage($data);
                     } else {
                         $data['text'] = 'Такого предмета не зареєстровано на базі. Будь ласка, виберіть існуючий предмет';
@@ -104,11 +113,21 @@ class SendworkCommand extends StudentCommand
                 TelegramLog::debug('Start Register works');
                 $works_sub = [];
                 $works = [];
-                foreach (DB::getUncompletedTasksDetailsForStudent($user_id) as $work) {
+                $works_data = DB::getUncompletedTasksDetailsForStudent($user_id);
+                if($works_data){
+                foreach ($works_data as $work) {
                     if ($work['name'] == $notes['subject']) {
                         $works_sub[] = substr($work['task'], 0, 40);
                         $works[substr($work['task'], 0, 40)] = $work['task'];
                     }
+                }
+                }else{
+                    $data['text'] = 'Невиконаних завдань не знайдено:';
+                    $data['reply_markup'] = KeyboardTelegram::getKeyboard($user_id);
+                    $result = Request::sendMessage($data);
+                    
+                    $this->conversation->stop();
+                    return $result;
                 }
 
                 if (count($works) <= 0) {
@@ -170,7 +189,7 @@ class SendworkCommand extends StudentCommand
                     $file_id = $doc->getFileId();
                     $file    = Request::getFile(['file_id' => $file_id]);
                     if ($file->isOk() && Request::downloadFile($file->getResult())) {
-                        $data['text'] = $message_type . ' file is located at: ' . $download_path . '/' . $file->getResult()->getFilePath();
+                        $data['text'] = "Файл успішно завантажено";
                         $result = Request::sendMessage($data);
                     } else {
                         $data['text'] = 'Не вдалося завантажити.';
@@ -196,7 +215,8 @@ class SendworkCommand extends StudentCommand
                     $work_data = DB::selectWorkData($notes['task'])->id;
                     DB::insertCompletedWorkData(new CompletedWork($user_id, 
                     $work_data, 
-                    $date->format('Y-m-d H:i:s')));
+                    $date->format('Y-m-d H:i:s'), 
+                    $notes['file_id']));
                 } catch (\PDOException $e) {
                     $data['text'] = 'Виникла помилка при відправленні завдання';
                     $result = Request::sendMessage($data);

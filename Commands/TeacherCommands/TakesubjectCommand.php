@@ -92,6 +92,9 @@ class TakesubjectCommand extends TeacherCommand
                 TelegramLog::debug('Success teacher Subject:', $notes);
             case 1:
                 TelegramLog::debug('Finish add Subject');
+                
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
 
                 $this->conversation->update();
                 $out_text = '/takeSubject result:' . PHP_EOL;
@@ -103,7 +106,12 @@ class TakesubjectCommand extends TeacherCommand
                 }
 
                 try {
-                    DB::insertTeacherSubjectData($user_id, $notes['subject']);
+                    $result = DB::insertTeacherSubjectData($user_id, $notes['subject']);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
@@ -111,9 +119,6 @@ class TakesubjectCommand extends TeacherCommand
                     break;
                 }
 
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
-                $keyboard = KeyboardTelegram::getKeyboard($user_id);
-                $data['reply_markup'] = $keyboard;
                 $this->conversation->stop();
 
                 $result = Request::sendMessage($data);

@@ -7,9 +7,9 @@ use Longman\TelegramBot\Entities\Keyboard;
 
 class KeyboardTelegram
 {
-    private static $userCommand = [['Регістрація', 'Новини'],['Допомога']];
-    private static $teacherCommand = [['Інформація про студентів', 'Команди для груп'],['Команди для завдань', 'Команди для предметів'], ['Розсилка повідомлення']];
-    private static $studentCommand = [['Розклад пар', 'Завдання'], ['Інформація', 'Відправити завдання'],['Записатися на консультацію']];
+    private static $userCommand = [['Регістрація', 'Новини']];
+    private static $teacherCommand = [['Інформація про студентів', 'Команди для груп'],['Команди для завдань', 'Команди для предметів', 'Команди для пар'], ['Розсилка повідомлення']];
+    private static $studentCommand = [['Завдання'], ['Інформація', 'Відправити завдання'],['Записатися на консультацію']];
 
     public static function getKeyboard($user_id){
         if (!DB::selectUserData($user_id)) {
@@ -37,13 +37,16 @@ class KeyboardTelegram
         $buttons = [];
         if (!DB::selectUserData($user_id)) {
             $buttons = self::$userCommand;
+            return array_merge(...$buttons);
         }
+        
         if (DB::getUserRole($user_id) === "teacher") {
             $buttons = self::$teacherCommand;
         }else if(DB::getUserRole($user_id) === "student"){
             $buttons = self::$studentCommand;
         }
-
+        
         return array_merge(...$buttons);
+
     }
 }

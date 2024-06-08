@@ -8,14 +8,15 @@ use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\Keyboard;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
+use Longman\TelegramBot\TelegramLog;
 
-class InfogroupCommand extends TeacherCommand
+class InfopairsCommand extends TeacherCommand
 {
-    protected $name = 'infogroup';
+    protected $name = 'infopairs';
 
-    protected $description = 'Отримання довідки про групу';
+    protected $description = 'Отримати всі пари';
 
-    protected $usage = '/infogroup';
+    protected $usage = '/infopairs';
 
     protected $version = '1.0.0';
 
@@ -23,9 +24,10 @@ class InfogroupCommand extends TeacherCommand
 
     protected $need_mysql = true;
 
+
     public function executeNoDb(): ServerResponse
     {
-        return $this->removeKeyboard('Немає діалогу');
+        return $this->removeKeyboard('Нет діалога');
     }
 
     public function execute(): ServerResponse
@@ -36,8 +38,6 @@ class InfogroupCommand extends TeacherCommand
         $text    = trim($message->getText(true));
         $chat_id = $chat->getId();
         $user_id = $user->getId();
-        
-        $teacher_user = DB::selectUserData($user_id);
 
         if (DB::getUserRole($user_id) !== "teacher") {
             return Request::sendMessage(['chat_id' => $chat_id, 'text' => 'Ця команда доступна лише для вчителів.']);
@@ -63,11 +63,13 @@ class InfogroupCommand extends TeacherCommand
         switch ($state) {
             case 0:
                 $groups = [];
+                $groupsId = [];
                 foreach (DB::selectAllGroupsData() as $group) {
-                    if($group->name === "Null"){
+                    if ($group->name === "Null") {
                         continue;
                     }
                     $groups[] = $group->name;
+                    $groupsId[$group->name] = $group->id;
                 }
                 if ($text === '' || (!in_array($text, $groups, true))) {
                     $notes['state'] = 0;
@@ -80,7 +82,7 @@ class InfogroupCommand extends TeacherCommand
 
                     $data['text'] = 'Оберіть групу для отримання інформації:';
 
-                    if ($text === '' || $text === 'Показати довідку по групі') {
+                    if ($text === '' || $text === 'Переглянути пари по групі') {
                         $result = Request::sendMessage($data);
                     } else {
                         $data['text'] = 'Такої групи не загестровано';
@@ -90,37 +92,38 @@ class InfogroupCommand extends TeacherCommand
                 }
 
                 $notes['group'] = $text;
+                $notes['group_id'] = $groupsId[$notes['group']];
                 $text = '';
             case 1:
-                $this->conversation->update();
+
+                TelegramLog::debug("HELo", $notes);
+                $pairs = DB::selectAllPairsDataByGroup($notes['group_id']);
+
+                if($pairs){
+                    foreach($pairs as $index => $pair){
+                        $text .= sprintf("Пара: %s\nПредмет: %s\nВчитель: %s\nПочаток: %s\nКінець: %s\nТиждень: %s",
+                        $index + 1,
+                        $pair['subject_name'],
+                        $pair['teacher_fullname'],
+                        $pair['start'],
+                        $pair['end'],
+                        $pair['top_week'] ? "Верхній" : "Ніжній");
+                    }
+                }else{
+                    $text = "Пар не загестровано на цій групі";
+                }
+        
                 $keyboard = KeyboardTelegram::getKeyboard($user_id);
-                $data['reply_markup'] = $keyboard;
-
-                $group = DB::selectGroupData($notes['group']);
-                $teacher_data = DB::selectTeacherDataByGroup($group->id);
-
-                $teacher_user = DB::selectUserData($teacher_data['user_id']);
-                $teacher_fullname = $teacher_user->first_name . " " . $teacher_user->second_name . " " . $teacher_user->middle_name;
-                
-                $text = sprintf(
-                    "Назва групи: %s\nПовна назва групи: %s\nПосилання на групу телеграм: %s\nКласний керівник: %s",
-                    $group->name,
-                    $group->fullname,
-                    !$group->link ? "Немає" : $group->link,
-                    $teacher_fullname === "" ? "Немає" : $teacher_fullname
-                );
-                
-                $out_text = '/infogroup Результат:' . PHP_EOL . $text;
-
-                unset($notes['state']);
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+        
+                $data = [
+                    'chat_id' => $chat_id,
+                    'text'    => $text,
+                    'reply_markup' => $keyboard,
+                ];
 
                 $this->conversation->stop();
-
-                $result = Request::sendMessage($data);
-
-                break;
+        
+                return Request::sendMessage($data);
         }
         return $result;
     }

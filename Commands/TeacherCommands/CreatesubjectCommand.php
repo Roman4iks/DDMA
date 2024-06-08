@@ -1,4 +1,5 @@
 <?php
+
 namespace Longman\TelegramBot\Commands\TeacherCommands;
 
 use App\class\Subject;
@@ -82,6 +83,9 @@ class CreatesubjectCommand extends TeacherCommand
                 TelegramLog::debug('Finish create Subject');
 
                 $this->conversation->update();
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
+
                 $out_text = '/createSubject Результат:' . PHP_EOL;
                 unset($notes['state']);
 
@@ -91,17 +95,25 @@ class CreatesubjectCommand extends TeacherCommand
                 }
 
                 try {
-                    DB::insertSubjectData(new Subject($notes['subject_name']));
+                    $result = DB::insertSubjectData(new Subject($notes['subject_name']));
+                    if ($result) {
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    } else {
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
+
+                    $result = DB::insertTeacherSubjectData($user_id, $notes['subject_name']);
+                    if ($result) {
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    } else {
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
                     TelegramLog::error("Error insert - " . $e);
                     break;
                 }
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
-                $keyboard = KeyboardTelegram::getKeyboard($user_id);
-                $data['reply_markup'] = $keyboard;
 
                 $this->conversation->stop();
 

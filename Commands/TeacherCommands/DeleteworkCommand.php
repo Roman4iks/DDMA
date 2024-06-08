@@ -134,17 +134,21 @@ class DeleteworkCommand extends TeacherCommand
 
                 $work = DB::selectWorkDataById($notes['workId']);
                 
+                $out_text = '/deletework Результат:' . PHP_EOL . $text;
+                
                 try {
-                    DB::deleteWorkData($work);
+                    $result = DB::deleteWorkData($work);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
                     TelegramLog::error("Error insert - " . $e);
                     break;
                 }
-                $out_text = '/deletework Результат:' . PHP_EOL . $text;
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
 
                 unset($notes['state']);
 

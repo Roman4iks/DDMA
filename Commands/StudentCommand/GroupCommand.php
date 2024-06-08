@@ -6,6 +6,7 @@ use App\utils\KeyboardTelegram;
 use Longman\TelegramBot\Commands\StudentCommand;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
+use Longman\TelegramBot\TelegramLog;
 
 class GroupCommand extends StudentCommand
 {
@@ -48,10 +49,11 @@ class GroupCommand extends StudentCommand
             $teacher_data = DB::selectUserData($teacher['user_id']);
             $teacher_fullname = $teacher_data->first_name . " " . $teacher_data->second_name . " " . $teacher_data->middle_name;
         }
+
         $text = sprintf("Назва групи: %s\nПовна назва групи: %s\nПосилання на групу телеграм: %s\nКласний керівник: %s",
         $group->name,
         $group->fullname,
-        $group->link ? "Немає" : $group->link,
+        !$group->link ? "Немає" : $group->link,
         $teacher_fullname === "" ? "Немає" : $teacher_fullname );
 
         $keyboard = KeyboardTelegram::getKeyboard($user_id);

@@ -95,7 +95,12 @@ class DeletesubjectCommand extends TeacherCommand
                 $out_text = '/deletesubject Результат:' . PHP_EOL;
                 $subject = DB::selectSubjectData($notes['subject']);
                 try {
-                    DB::deleteSubjectData($subject);
+                    $result = DB::deleteSubjectData($subject);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);

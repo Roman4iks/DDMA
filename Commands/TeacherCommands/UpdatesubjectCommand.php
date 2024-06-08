@@ -145,7 +145,12 @@ class UpdatesubjectCommand extends TeacherCommand
                 }
 
                 try {
-                    DB::updateSubjectData($notes['column'], $notes['new_data'], $notes['subject']);
+                    $result = DB::updateSubjectData($notes['column'], $notes['new_data'], $notes['subject']);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
@@ -154,13 +159,9 @@ class UpdatesubjectCommand extends TeacherCommand
                     break;
                 }
 
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
-
                 $this->conversation->stop();
 
                 $result = Request::sendMessage($data);
-
-                TelegramLog::debug("Finish registration", $notes);
                 break;
         }
         return $result;

@@ -101,9 +101,12 @@ class DeletegroupCommand extends TeacherCommand
                 $out_text = '/deletegroup Результат:' . PHP_EOL;
                 $group = DB::selectGroupData($notes['group']);
                 try {
-                    TelegramLog::debug("DELETE HERE", [$group]);
-                    DB::deleteGroupData($group);
-                    TelegramLog::debug("DELETE END", [$group]);
+                    $result = DB::deleteGroupData($group);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
@@ -112,8 +115,6 @@ class DeletegroupCommand extends TeacherCommand
                 }
 
                 unset($notes['state']);
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
 
                 $this->conversation->stop();
 

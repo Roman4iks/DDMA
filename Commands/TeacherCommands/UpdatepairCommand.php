@@ -12,13 +12,13 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\TelegramLog;
 
-class UpdateworkCommand extends TeacherCommand
+class UpdatepairCommand extends TeacherCommand
 {
-    protected $name = 'updatework';
+    protected $name = 'updatepair';
 
-    protected $description = 'Оновити завдання';
+    protected $description = 'Оновити пару';
 
-    protected $usage = '/updatework';
+    protected $usage = '/updatepair';
 
     protected $version = '1.0.0';
 
@@ -49,7 +49,7 @@ class UpdateworkCommand extends TeacherCommand
             'reply_markup' => Keyboard::remove(['selective' => true]),
         ];
 
-        if ($chat->isGroupChat() || $chat->isSuperGroup()) {
+        if ($chat->isPairChat() || $chat->isSuperPair()) {
             $data['reply_markup'] = Keyboard::forceReply(['selective' => true]);
         }
 
@@ -63,12 +63,14 @@ class UpdateworkCommand extends TeacherCommand
 
         switch ($state) {
             case 0:
-                $groups = [];
+                $groups = ['/cancel'];
+                $groupsId = [];
                 foreach (DB::selectAllGroupsData() as $group) {
                     if ($group->name === "Null") {
                         continue;
                     }
                     $groups[] = $group->name;
+                    $groupsId[$group->name] = $group->id;
                 }
                 if ($text === '' || (!in_array($text, $groups, true))) {
                     $notes['state'] = 0;
@@ -79,9 +81,9 @@ class UpdateworkCommand extends TeacherCommand
                         ->setOneTimeKeyboard(true)
                         ->setSelective(true);
 
-                    $data['text'] = 'Оберіть групу для отримання інформації:';
+                    $data['text'] = 'Оберіть групу для оновлення даних:';
 
-                    if ($text === '' || $text === 'Оновити завдання') {
+                    if ($text === '' || $text === 'Оновити пару') {
                         $result = Request::sendMessage($data);
                     } else {
                         $data['text'] = 'Такої групи не загестровано';
@@ -91,71 +93,118 @@ class UpdateworkCommand extends TeacherCommand
                 }
 
                 $notes['group'] = $text;
+                $notes['group_id'] = $groupsId[$notes['group']];
                 $text = '';
             case 1:
-                $works = [];
-                $worksId = [];
-                $works_objects = DB::selectWorksData($notes['group'], $user_id);
+                TelegramLog::debug('Start pair Subject');
 
-                if (count($works_objects) === 0) {
-                    $data['text'] = 'Завдань за цією групою не знайдено:';
-                } else {
-                    foreach ($works_objects as $work) {
-                        $works[] = $work['task'];
-                        $worksId[$work['task']] = $work['id'];
-                    }
+                $subjects = ['/cancel'];
+                $subjectsId = [];
+                foreach (DB::selectAllSubjectsData() as $subject) {
+                    $subjects[] = $subject->name;
+                    $subjectsId[$subject->name] = $subject->id;
                 }
-                if ($text === '' || (!in_array($text, $works, true))) {
+
+                if ($text === '' || (!in_array($text, $subjects, true))) {
                     $notes['state'] = 1;
                     $this->conversation->update();
 
-                    $data['reply_markup'] = (new Keyboard($works))
+                    $data['reply_markup'] = (new Keyboard($subjects))
                         ->setResizeKeyboard(true)
                         ->setOneTimeKeyboard(true)
                         ->setSelective(true);
 
-                    $data['text'] = 'Оберіть завдання для видалення:';
+                    $data['text'] = 'Виберіть предмет:';
 
                     if ($text === '') {
-
-                        if ($work['subject_id']) {
-                            $subject = DB::selectSubjectDataById($work['subject_id']);
-                        } else {
-                            $subject = null;
-                        }
-                        $text .= sprintf(
-                            "\n\nЗавдання: %s\nПредмет: %s\nПочаток: %s\nКінець: %s",
-                            $work['task'],
-                            $subject === null ? "Не вказано" : $subject->name,
-                            $work['start'],
-                            $work['end'],
-                        );
-
                         $result = Request::sendMessage($data);
                     } else {
-                        $data['text'] = 'Такого завдання не загестровано';
+                        $data['text'] = 'Такого предмета не зареєстровано на базі. Будь ласка, виберіть існуючий предмет';
                         $result = Request::sendMessage($data);
                     }
                     break;
                 }
 
-                $notes['work'] = $text;
-                $notes['workId'] = $worksId[$text];
+                $notes['subject_id'] = $subjectsId[$text];
                 $text = '';
+                TelegramLog::debug('Success pair Subject:', $notes);
             case 2:
-                $worksColumn = [];
-                foreach (DB::selectColumnWorkData() as $column) {
-                    if ($column['COLUMN_NAME'] === 'id' || $column['COLUMN_NAME'] === 'teacher_id') {
-                        continue;
-                    }
-                    $worksColumn[] = $column['COLUMN_NAME'];
-                }
-
-                if ($text === '' || (!in_array($text, $worksColumn, true))) {
+                $week = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', "П'ятниця", 'Субота', 'Неділя'];
+                if ($text === '' || (!in_array($text, $week, true))) {
                     $notes['state'] = 2;
                     $this->conversation->update();
 
-                    $data['reply_markup'] = (new Keyboard($worksColumn))
+                    $data['reply_markup'] = (new Keyboard($week))
+                        ->setResizeKeyboard(true)
+                        ->setOneTimeKeyboard(true)
+                        ->setSelective(true);
+
+                    $data['text'] = 'Оберіть тиждень:';
+
+                    if ($text === '') {
+                        $result = Request::sendMessage($data);
+                    } else {
+                        $data['text'] = 'Оберіть тиждень';
+                        $result = Request::sendMessage($data);
+                    }
+                    break;
+                }
+
+                $notes['week'] = array_search($text, $week) + 1;
+                $text = '';
+            case 3:
+                $pairs = [];
+                $pairsId = [];
+                foreach (DB::selectAllPairsDataByGroup($notes['group_id'], $notes['subject_id']) as $pair) {
+                    if ($pair) {
+                        $week_top = $pair['top_week'] === 0 ? 'Верхня' : 'Ніжня';
+                        $pairs[] = $pair['subject_name'] . " час " . substr($pair['start'], 0, -3) . ' - ' . substr($pair['end'], 0, -3) . ' (' . $week_top . ')';
+                        TelegramLog::debug("HERE", $pair);
+                        $pairsId[$pair['subject_name'] . " час " . substr($pair['start'], 0, -3) . ' - ' . substr($pair['end'], 0, -3) . ' (' . $week_top . ')'] = $pair['id'];
+                    }else{
+                        $data['text'] = 'Пар за цими даними немає:';
+                        $result = Request::sendMessage($data);
+                        $notes['state'] = 0;
+                        break;
+                    }
+                }
+                if ($text === '' || (!in_array($text, $pairs, true))) {
+                    $notes['state'] = 3;
+                    $this->conversation->update();
+
+                    $data['reply_markup'] = (new Keyboard($pairs))
+                        ->setResizeKeyboard(true)
+                        ->setOneTimeKeyboard(true)
+                        ->setSelective(true);
+
+                    $data['text'] = 'Оберіть пару для оновлення даних:';
+
+                    if ($text === '') {
+                        $result = Request::sendMessage($data);
+                    } else {
+                        $data['text'] = 'Такої пари не загестровано';
+                        $result = Request::sendMessage($data);
+                    }
+                    break;
+                }
+                $notes['pair'] = $text;
+                $notes['pair_id'] = $pairsId[$text];
+                TelegramLog::debug("MESSAGE", $notes);
+                $text = '';
+            case 4:
+                $pairsColumn = ['/cancel'];
+                foreach (DB::selectColumnPairData() as $column) {
+                    if ($column['COLUMN_NAME'] === 'id' || $column['COLUMN_NAME'] === 'teacher_id') {
+                        continue;
+                    }
+                    $pairsColumn[] = $column['COLUMN_NAME'];
+                }
+
+                if ($text === '' || (!in_array($text, $pairsColumn, true))) {
+                    $notes['state'] = 4;
+                    $this->conversation->update();
+
+                    $data['reply_markup'] = (new Keyboard($pairsColumn))
                         ->setResizeKeyboard(true)
                         ->setOneTimeKeyboard(true)
                         ->setSelective(true);
@@ -170,9 +219,9 @@ class UpdateworkCommand extends TeacherCommand
 
                 $notes['column'] = $text;
                 $text = '';
-            case 3:
+            case 5:
                 if ($notes['column'] === 'group_id') {
-                    $groups = [];
+                    $groups = ['/cancel'];
                     $groupsId = [];
                     foreach (DB::selectAllGroupsData() as $group) {
                         if ($group->name === "Null") {
@@ -183,7 +232,7 @@ class UpdateworkCommand extends TeacherCommand
                     }
 
                     if ($text === '' || (!in_array($text, $groups, true))) {
-                        $notes['state'] = 3;
+                        $notes['state'] = 5;
                         $this->conversation->update();
 
                         $data['reply_markup'] = (new Keyboard($groups))
@@ -204,14 +253,14 @@ class UpdateworkCommand extends TeacherCommand
                     $notes['new_data'] = $groupsId[$text];
                     $text = '';
                 } else if ($notes['column'] === 'subject_id') {
-                    $subjects = [];
+                    $subjects = ['/cancel'];
                     $subjectsId = [];
                     foreach (DB::selectAllSubjectsData() as $subject) {
                         $subjects[] = $subject->name;
                         $subjectsId[$subject->name] = $subject->id;
                     }
                     if ($text === '' || (!in_array($text, $subjects, true))) {
-                        $notes['state'] = 3;
+                        $notes['state'] = 5;
                         $this->conversation->update();
 
                         $data['reply_markup'] = (new Keyboard($subjects))
@@ -231,32 +280,32 @@ class UpdateworkCommand extends TeacherCommand
                     }
                     $notes['new_data'] = $subjectsId[$text];
                     $text = '';
-                } else if($notes['column'] === 'start' || $notes['column'] === 'end'){
+                } else if ($notes['column'] === 'start' || $notes['column'] === 'end') {
                     if ($text === '') {
-                        $notes['state'] = 3;
-                        $this->conversation->update();
-    
-                        $data['text'] = 'Напишіть дату завдання за форматом 2001-12-31 08:00:';
-    
-                        $result = Request::sendMessage($data);
-                        break;
-                    }
-    
-                    if (!Validator::validateDateAndTime($text)) {
-                        $data['text'] = 'Неправильний формат дати';
-    
-                        $result = Request::sendMessage($data);
-                        break;
-                    }
-    
-                    $notes['new_data'] = date('Y-m-d H:i', strtotime($text));
-                    $text = '';
-                }else {
-                    if ($text === '') {
-                        $notes['state'] = 3;
+                        $notes['state'] = 5;
                         $this->conversation->update();
 
-                        $data['text'] = 'Введіть нові данні для предмета - ' . $notes['work'] . " поля " . $notes['column'];
+                        $data['text'] = 'Напишіть час пари за форматом 08:00:';
+
+                        $result = Request::sendMessage($data);
+                        break;
+                    }
+
+                    if (!Validator::validateTime($text)) {
+                        $data['text'] = 'Неправильний формат часу';
+
+                        $result = Request::sendMessage($data);
+                        break;
+                    }
+
+                    $notes['new_data'] = date('H:i', strtotime($text));
+                    $text = '';
+                } else {
+                    if ($text === '') {
+                        $notes['state'] = 5;
+                        $this->conversation->update();
+
+                        $data['text'] = 'Введіть нові данні для предмета - ' . $notes['pair'] . " поля " . $notes['column'];
 
                         $result = Request::sendMessage($data);
                         break;
@@ -264,12 +313,11 @@ class UpdateworkCommand extends TeacherCommand
                     $notes['new_data'] = $text;
                     $text = '';
                 }
-            case 4:
+            case 6:
                 $this->conversation->update();
+                TelegramLog::debug("MESSAGE", $notes);
                 $keyboard = KeyboardTelegram::getKeyboard($user_id);
                 $data['reply_markup'] = $keyboard;
-
-                $work = DB::selectWorkDataById($notes['workId']);
 
                 $out_text = 'Результат:' . PHP_EOL;
                 unset($notes['state']);
@@ -278,12 +326,13 @@ class UpdateworkCommand extends TeacherCommand
                     $value = ($v !== null) ? $v : 'Nothing';
                     $out_text .= PHP_EOL . ucfirst($k) . ': ' . $value;
                 }
+                
 
                 try {
-                    $result = DB::updateWorkData($notes['column'], $notes['new_data'], $work);
-                    if($result){
+                    $result = DB::updatePairData($notes['column'], $notes['new_data'], $notes['pair_id'], $user_id);
+                    if ($result) {
                         $data['text'] = $out_text . PHP_EOL . "Статус ✅";
-                    }else{
+                    } else {
                         $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
                     }
                 } catch (\PDOException $e) {

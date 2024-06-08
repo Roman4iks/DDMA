@@ -41,7 +41,7 @@ class GenericmessageCommand extends SystemCommand
         } else {
             switch ($text) {
                 case 'Інформація':
-                    $keyboard_buttons = ['Група', 'Вчителі та предмети', 'Назад'];
+                    $keyboard_buttons = ['Група', 'Вчителі та предмети', 'Пари на цей тиждень', 'Назад'];
                     $response_text = 'Команди для отримання інформації:';
                     break;
                 case 'Завдання':
@@ -64,6 +64,10 @@ class GenericmessageCommand extends SystemCommand
                     $keyboard_buttons = ['Створити завдання', 'Оновити завдання', 'Видалити завдання', 'Переглянути надіслані завдання', 'Отримати інформацію про завдання', 'Назад'];
                     $response_text = 'Команди для керування завданнями колледжу:';
                     break;
+                case 'Команди для пар':
+                    $keyboard_buttons = ['Створити пару', 'Оновити пару', 'Видалити пару', 'Переглянути пари по групі', 'Назад'];
+                    $response_text = 'Команди для керування парами колледжу:';
+                    break;
                 default:
                     $commands = [
                         'Відміна' => 'Longman\TelegramBot\Commands\UserCommands\CancelCommand',
@@ -79,6 +83,7 @@ class GenericmessageCommand extends SystemCommand
                         'Невиконані за весь час' => 'Longman\TelegramBot\Commands\StudentCommands\TasksuncompletedCommand',
                         'Довідка' => 'Longman\TelegramBot\Commands\StudentCommands\TotalworksfromsubjectCommand',
                         'Розклад пар' => 'Longman\TelegramBot\Commands\StudentCommands\PairsCommand',
+                        'Пари на цей тиждень' => 'Longman\TelegramBot\Commands\StudentCommands\PairCommand',
                         'Розсилка повідомлення' => 'Longman\TelegramBot\Commands\TeacherCommands\MailingCommand',
                         'Створити групу' => 'Longman\TelegramBot\Commands\TeacherCommands\CreategroupCommand',
                         'Видалити групу' => 'Longman\TelegramBot\Commands\TeacherCommands\DeletegroupCommand',
@@ -93,6 +98,11 @@ class GenericmessageCommand extends SystemCommand
                         'Отримати інформацію про завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\InfoworkCommand',
                         'Видалити завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\DeleteworkCommand',
                         'Оновити завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\UpdateworkCommand',
+                        'Переглянути надіслані завдання' => 'Longman\TelegramBot\Commands\TeacherCommands\UpdatecompleteworkCommand',
+                        'Створити пару' => 'Longman\TelegramBot\Commands\TeacherCommands\CreatepairCommand',
+                        'Оновити пару' => 'Longman\TelegramBot\Commands\TeacherCommands\UpdatepairCommand',
+                        'Видалити пару' => 'Longman\TelegramBot\Commands\TeacherCommands\DeletepairCommand',
+                        'Переглянути пари по групі' => 'Longman\TelegramBot\Commands\TeacherCommands\InfopairsCommand',
                     ];
                     if (array_key_exists($text, $commands)) {
                         $class_name = $commands[$text];

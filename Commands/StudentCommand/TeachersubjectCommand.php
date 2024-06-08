@@ -8,6 +8,7 @@ use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\Keyboard;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Request;
+use Longman\TelegramBot\TelegramLog;
 
 class TeachersubjectCommand extends StudentCommand
 {
@@ -52,9 +53,10 @@ class TeachersubjectCommand extends StudentCommand
         $state = $notes['state'] ?? 0;
 
         $result = Request::emptyResponse();
-        $command_str = $command_str === "Вчителі та предмети" ? null : $command_str;
+        $command_str = $command_str === "Вчителі та предмети" ? "" : $command_str;
 
-        if ($command_str) {
+        
+        if ($command_str !== "") {
             $text = $this->getSubjectsAndTeachers($command_str);
             
             $data = [
@@ -74,11 +76,13 @@ class TeachersubjectCommand extends StudentCommand
                 case 0:
                     $data_objects = DB::selectAllTeacherSubjectData();
 
+        
                     $subjects = [];
                     foreach ($data_objects as $subject_teacher) {
                         $subject = DB::selectSubjectDataById($subject_teacher['subject_id']);
                         $subjects[] = $subject->name;
                     }
+
                     
                     if ($text === '' || (!in_array($text, $subjects, true))) {
                         $notes['state'] = 0;
@@ -89,10 +93,15 @@ class TeachersubjectCommand extends StudentCommand
                             ->setOneTimeKeyboard(true)
                             ->setSelective(true);
 
-                        if ($text === '') {
+                        if(count($subjects) === 0) {
+                            $data['text'] = 'Предметів за вчителями не загестровано:';
+                            $result = Request::sendMessage($data);
+                            $this->conversation->stop();
+                        } else if ($text === '' || $text === 'Вчителі та предмети'){
+                            $data['text'] = 'Виберіть предмет:';
                             $result = Request::sendMessage($data);
                         } else {
-                            $data['text'] = 'Виберіть предмет:';
+                            $data['text'] = "Такого предмета не існує" . $text;
                             $result = Request::sendMessage($data);
                         }
                         break;
@@ -101,7 +110,7 @@ class TeachersubjectCommand extends StudentCommand
                     $text = '';
                 case 1:
                     $this->conversation->update();
-                    $out_text = $this->getSubjectsAndTeachers($notes['subject']);
+                    $text = $this->getSubjectsAndTeachers($notes['subject']);
                     unset($notes['state']);
 
                     $data = [
@@ -122,18 +131,19 @@ class TeachersubjectCommand extends StudentCommand
         if (!$subject) {
             $text = "Такого предмета не існує";
         }
-
+        TelegramLog::debug("Message", [$subject]);
         $teacher = DB::selectTeacherSubjectData($subject->name);
         if (!$teacher) {
             $text = "За цим предметом не прив'язан жоден з вчителів";
         }else{
             $teacher_data = DB::selectUserData($teacher['teacher_id']);
+            TelegramLog::debug("Hello -> ", [$teacher_data]);
             $teacher_fullname = $teacher_data->first_name . " " . $teacher_data->second_name . " " . $teacher_data->middle_name;
         }
         $text = sprintf(
             "Предмет: %s\nВчитель: %s",
             $subject->name,
-            $teacher_fullname === "" ?  $teacher_fullname : $text
+            $teacher_fullname !== "" ?  $teacher_fullname : $text
         );
 
         $this->conversation->stop();

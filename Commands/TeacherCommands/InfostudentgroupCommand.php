@@ -108,7 +108,6 @@ class InfostudentgroupCommand extends TeacherCommand
                     break;
                 }
 
-                $data['text'] = $notes['group_message'];
                 $out_text = '/infostudentgroup Результат:';
                 $error_text = '';
                 $result_text = '';
@@ -125,7 +124,7 @@ class InfostudentgroupCommand extends TeacherCommand
                             $group->name,
                             $group->fullname,
                             $student_user->phone,
-                            $student_user->email ? 'Немає' : $student_user->email,
+                            !$student_user->email ? 'Немає' : $student_user->email,
                             $student_user->birthday
                         );
                     }

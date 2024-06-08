@@ -148,7 +148,12 @@ class UpdategroupCommand extends TeacherCommand
                 }
 
                 try {
-                    DB::updateGroupData($notes['column'], $notes['new_data'], $notes['group']);
+                    $result = DB::updateGroupData($notes['column'], $notes['new_data'], $notes['group']);
+                    if($result){
+                        $data['text'] = $out_text . PHP_EOL . "Статус ✅";
+                    }else{
+                        $data['text'] = $out_text . PHP_EOL . "Щось пішло не так:" . PHP_EOL . "Статус ❌" . $result;
+                    }
                 } catch (\PDOException $e) {
                     $data['text'] = 'Статус ❌';
                     $result = Request::sendMessage($data);
@@ -156,8 +161,6 @@ class UpdategroupCommand extends TeacherCommand
                     TelegramLog::error("Error insert - " . $e);
                     break;
                 }
-
-                $data['text'] = $out_text . PHP_EOL . "Статус ✅";
 
                 $this->conversation->stop();
 

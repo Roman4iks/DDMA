@@ -68,6 +68,9 @@ class ConsultregisterCommand extends StudentCommand
                 $teachers = [];
                 $teachersId = [];
                 foreach ($data_objects as $teacher) {
+                    if($teacher['group_id'] === 1){
+                        continue;
+                    }
                     $teachers[] = $teacher['teacher_fullname'];
                     $teachersId[$teacher['teacher_fullname']] = $teacher['user_id'];
                 }
@@ -112,23 +115,32 @@ class ConsultregisterCommand extends StudentCommand
             
                 $this->conversation->update();
                 $student = DB::selectUserData($user_id);
+                
+                $keyboard = KeyboardTelegram::getKeyboard($notes['teacher_id']);
+
+                $data['reply_markup'] = $keyboard;
 
                 $data['text'] = "До вас записався на консультацію " . $student->first_name . ' ' . $student->second_name . PHP_EOL . $notes['consult'];
                 $data['chat_id'] = $notes['teacher_id'];
   
-
                 Request::sendMessage($data);
+
+                $keyboard = KeyboardTelegram::getKeyboard($user_id);
+                $data['reply_markup'] = $keyboard;
+
+                $data['chat_id'] = $user_id;
                 
                 $out_text = '/consultregister Результат:' . PHP_EOL;
                 unset($notes['state']);
 
                 foreach ($notes as $k => $v) {
+                    if($k === "teacher_id"){
+                        continue;
+                    }
                     $value = ($v !== null) ? $v : 'Nothing';
                     $out_text .= PHP_EOL . ucfirst($k) . ': ' . $value;
                 }
 
-                $keyboard = KeyboardTelegram::getKeyboard($user_id);
-                $data['reply_markup'] = $keyboard;
                 $data['text'] = $out_text . PHP_EOL . "Статус ✅";
 
                 $this->conversation->stop();
